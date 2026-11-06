@@ -1,0 +1,32 @@
+# Krishi Mama — Server .gitignore
+
+# ---- Dependencies ----
+node_modules/
+
+# ---- Environment & secrets (NEVER commit) ----
+.env
+.env.*
+!.env.example
+.netrc
+*_netrc
+*.pem
+*.key
+
+# ---- NASA Earthdata credentials ----
+earthdata/
+*.edl
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- Build / cache ----
+dist/
+coverage/
