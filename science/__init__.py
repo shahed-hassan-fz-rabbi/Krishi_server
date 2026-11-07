@@ -1,0 +1,3 @@
+"""
+Krishi Mama Science Package.
+"""

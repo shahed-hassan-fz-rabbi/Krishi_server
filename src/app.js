@@ -4,6 +4,7 @@
  */
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 import { env } from "./config/env.config.js";
 import apiV1Routes from "./routes/v1/index.js";
@@ -16,13 +17,29 @@ export function createApp() {
   // ---- Core middleware ----
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
+  app.use(cookieParser());
 
-  // ---- CORS ----
+  // ---- Credentialed CORS ----
+  const configuredOrigins = Array.isArray(env.corsOrigin) ? env.corsOrigin : [env.corsOrigin];
+  const allowedOrigins = new Set([
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    ...configuredOrigins,
+  ]);
+
   app.use(
     cors({
-      origin: env.nodeEnv === "development" ? true : env.corsOrigin,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (env.nodeEnv === "development" || env.nodeEnv === "test" || allowedOrigins.has(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+      },
+      credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      credentials: false,
+      allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
     })
   );
 
