@@ -11,6 +11,11 @@ import smapRoutes from "./smap.routes.js";
 import modisRoutes from "./modis.routes.js";
 import gisRoutes from "./gis.routes.js";
 import cropCalendarRoutes from "./cropcalendar.routes.js";
+import assistantRoutes from "./assistant.routes.js";
+import farmRoutes from "./farm.routes.js";
+import cropLifecycleRoutes from "./croplifecycle.routes.js";
+import cropPlanningRoutes from "./cropplanning.routes.js";
+import notificationRoutes from "./notification.routes.js";
 
 const router = Router();
 
@@ -23,5 +28,10 @@ router.use("/soil-moisture", smapRoutes);
 router.use("/vegetation", modisRoutes);
 router.use("/gis", gisRoutes);
 router.use("/crop-calendar", cropCalendarRoutes);
+router.use("/assistant", assistantRoutes);
+router.use("/farms", farmRoutes);
+router.use("/crop-lifecycle", cropLifecycleRoutes);
+router.use("/crop-planning", cropPlanningRoutes);
+router.use("/notifications", notificationRoutes);
 
 export default router;

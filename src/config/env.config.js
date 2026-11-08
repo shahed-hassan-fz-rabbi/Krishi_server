@@ -14,11 +14,13 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: parseInt(process.env.PORT || "5000", 10),
   mongoUri: process.env.MONGODB_URI || "",
-  corsOrigin: (process.env.CORS_ORIGIN || "http://localhost:3000")
+  corsOrigin: (process.env.CORS_ORIGIN || process.env.CLIENT_URL || "http://localhost:3000")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
   jwtSecret: process.env.JWT_SECRET || "krishi-mama-super-secure-jwt-signing-secret-key-32chars",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   logLevel: process.env.LOG_LEVEL || "info",
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
 };

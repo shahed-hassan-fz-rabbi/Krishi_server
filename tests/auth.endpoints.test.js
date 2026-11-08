@@ -34,7 +34,7 @@ after(async () => {
   if (!databaseConnected) return;
   try {
     if (mongoose.connection.readyState === 1) {
-      await User.deleteMany({});
+      await mongoose.connection.db.dropDatabase();
     }
   } finally {
     await disconnectDatabase();

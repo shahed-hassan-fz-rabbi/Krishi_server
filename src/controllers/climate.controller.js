@@ -9,6 +9,7 @@ import { isIsoDate } from "../validators/power.validator.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { analyzeDistrictClimate, analyzeHandoff } from "../services/climate/analysis.service.js";
 import { NasaObservation } from "../models/nasaobservation.model.js";
+import { snapshotService } from "../services/snapshot.service.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 const VALID_RAINFALL_GROUPINGS = new Set(["monthly", "annual", "seasonal", "daily"]);
@@ -99,6 +100,29 @@ export async function getClimateSummary(req, res, next) {
 
     const { district, from, to } = validation;
 
+    // Check if database is offline or disconnected
+    if (!snapshotService.isDbConnected()) {
+      const snapshot = snapshotService.getClimateSnapshot(district);
+      if (snapshot && snapshot.data) {
+        const meta = {
+          ...(snapshot.meta || {}),
+          district,
+          provenance: "SNAPSHOT",
+          databaseConnected: false,
+          snapshotGeneratedAt: snapshot.snapshotMetadata.generatedAt,
+          sourceDataset: snapshot.snapshotMetadata.sourceDataset,
+          limitations: snapshot.snapshotMetadata.limitations,
+        };
+        return successResponse(res, 200, snapshot.data, meta);
+      }
+      return errorResponse(
+        res,
+        503,
+        `Climate data for district '${district}' is unavailable (offline and no verified snapshot exists).`,
+        "DATA_UNAVAILABLE"
+      );
+    }
+
     // Check data availability in DB
     const obsCount = await NasaObservation.countDocuments({
       districtCode: district,
@@ -117,7 +141,11 @@ export async function getClimateSummary(req, res, next) {
     const cacheKey = getCacheKey(["summary", district, from, to]);
     const cached = getFromCache(cacheKey);
     if (cached) {
-      return successResponse(res, 200, cached.data, cached.meta);
+      return successResponse(res, 200, cached.data, {
+        ...(cached.meta || {}),
+        provenance: "CACHED",
+        databaseConnected: true,
+      });
     }
 
     const analysis = await analyzeDistrictClimate({
@@ -127,9 +155,36 @@ export async function getClimateSummary(req, res, next) {
       endIso: to,
     });
 
-    setInCache(cacheKey, analysis);
-    return successResponse(res, 200, analysis.data, analysis.meta);
+    const meta = {
+      ...(analysis.meta || {}),
+      provenance: "HISTORICAL_DATABASE",
+      databaseConnected: true,
+    };
+
+    setInCache(cacheKey, { data: analysis.data, meta });
+    return successResponse(res, 200, analysis.data, meta);
   } catch (error) {
+    // If runtime DB error occurred, try fallback snapshot
+    try {
+      const validation = validateClimateQuery(req.query);
+      if (validation.valid) {
+        const snapshot = snapshotService.getClimateSnapshot(validation.district);
+        if (snapshot && snapshot.data) {
+          const meta = {
+            ...(snapshot.meta || {}),
+            district: validation.district,
+            provenance: "SNAPSHOT",
+            databaseConnected: false,
+            snapshotGeneratedAt: snapshot.snapshotMetadata.generatedAt,
+            sourceDataset: snapshot.snapshotMetadata.sourceDataset,
+            limitations: snapshot.snapshotMetadata.limitations,
+          };
+          return successResponse(res, 200, snapshot.data, meta);
+        }
+      }
+    } catch {
+      // Ignore fallback error and continue to global error handler
+    }
     next(error);
   }
 }
@@ -153,6 +208,67 @@ export async function getRainfall(req, res, next) {
         400,
         `grouping '${grouping}' is invalid. Supported: ${[...VALID_RAINFALL_GROUPINGS].join(", ")}`,
         "INVALID_GROUPING"
+      );
+    }
+
+    if (!snapshotService.isDbConnected()) {
+      const snapshot = snapshotService.getClimateSnapshot(district);
+      if (snapshot && snapshot.data && snapshot.data.rainfall) {
+        const rain = snapshot.data.rainfall;
+        let selectedData = {};
+        if (grouping === "monthly") {
+          selectedData = {
+            series: rain.monthly_series,
+            historical_normals: rain.monthly_historical,
+          };
+        } else if (grouping === "annual") {
+          selectedData = {
+            series: rain.annual_series,
+            historical_normals: rain.annual_historical,
+          };
+        } else if (grouping === "seasonal") {
+          selectedData = {
+            historical_seasons: rain.seasonal_historical,
+            seasons_definition: {
+              winter: "December to February (Dec–Feb, 3 months) — Rabi cool season",
+              pre_monsoon: "March to May (Mar–May, 3 months) — Hot pre-monsoon season",
+              monsoon: "June to September (Jun–Sep, 4 months) — South-west monsoon season",
+              post_monsoon: "October to November (Oct–Nov, 2 months) — Post-monsoon transition",
+            },
+          };
+        } else if (grouping === "daily") {
+          selectedData = {
+            district,
+            parameter: "PRECTOTCORR",
+            unit: "mm/day",
+            grouping: "daily",
+            series: [],
+            note: "Daily point-level series is only available with active database connection; monthly, annual, and seasonal historical normals are provided from verified offline snapshot.",
+          };
+        }
+
+        const meta = {
+          district,
+          parameter: "PRECTOTCORR",
+          unit: rain.unit || "mm",
+          grouping,
+          provenance: "SNAPSHOT",
+          databaseConnected: false,
+          snapshotGeneratedAt: snapshot.snapshotMetadata.generatedAt,
+          sourceDataset: snapshot.snapshotMetadata.sourceDataset,
+          limitations: snapshot.snapshotMetadata.limitations,
+          wet_day_definition:
+            "Project-selected threshold: valid daily precipitation >= 1.0 mm; missing days are excluded; not an agronomic threshold",
+        };
+
+        return successResponse(res, 200, selectedData, meta);
+      }
+
+      return errorResponse(
+        res,
+        503,
+        `Rainfall data for district '${district}' is not available in the database`,
+        "DATA_UNAVAILABLE"
       );
     }
 
@@ -276,6 +392,37 @@ export async function getTemperature(req, res, next) {
       );
     }
 
+    if (!snapshotService.isDbConnected()) {
+      const snapshot = snapshotService.getClimateSnapshot(district);
+      if (snapshot && snapshot.data && snapshot.data.temperature) {
+        const temp = snapshot.data.temperature;
+        const meta = {
+          district,
+          metric,
+          unit: "C",
+          provenance: "SNAPSHOT",
+          databaseConnected: false,
+          snapshotGeneratedAt: snapshot.snapshotMetadata.generatedAt,
+          sourceDataset: snapshot.snapshotMetadata.sourceDataset,
+          limitations: snapshot.snapshotMetadata.limitations,
+          metric_descriptions: {
+            t2m: "Temperature at 2 Meters (daily average)",
+            tmax: "Maximum Temperature at 2 Meters",
+            tmin: "Minimum Temperature at 2 Meters",
+            diurnal_range: "Diurnal Temperature Range (TMAX - TMIN)",
+          },
+        };
+        return successResponse(res, 200, temp, meta);
+      }
+
+      return errorResponse(
+        res,
+        503,
+        `Temperature data for district '${district}' is not available in the database`,
+        "DATA_UNAVAILABLE"
+      );
+    }
+
     const obsCount = await NasaObservation.countDocuments({
       districtCode: district,
       parameter: "T2M",
@@ -351,6 +498,29 @@ export async function getHandoffPlan(req, res, next) {
       );
     }
 
+    if (!snapshotService.isDbConnected()) {
+      const snapshot = snapshotService.getHandoffSnapshot(district, transition);
+      if (snapshot && snapshot.data) {
+        const meta = {
+          district,
+          transition,
+          provenance: "SNAPSHOT",
+          databaseConnected: false,
+          snapshotGeneratedAt: snapshot.snapshotMetadata?.generatedAt,
+          sourceDataset: snapshot.snapshotMetadata?.sourceDataset,
+          limitations: snapshot.snapshotMetadata?.limitations,
+        };
+        return successResponse(res, 200, snapshot.data, meta);
+      }
+
+      return errorResponse(
+        res,
+        503,
+        `Historical climate data for district '${district}' is not yet available in the database`,
+        "DATA_UNAVAILABLE"
+      );
+    }
+
     // Verify data availability in DB
     const obsCount = await NasaObservation.countDocuments({
       districtCode: district,
@@ -376,9 +546,34 @@ export async function getHandoffPlan(req, res, next) {
       cropTransition: transition,
     });
 
-    setInCache(cacheKey, analysis);
-    return successResponse(res, 200, analysis.data, analysis.meta);
+    const meta = {
+      ...(analysis.meta || {}),
+      provenance: "HISTORICAL_DATABASE",
+      databaseConnected: true,
+    };
+
+    setInCache(cacheKey, { data: analysis.data, meta });
+    return successResponse(res, 200, analysis.data, meta);
   } catch (error) {
+    try {
+      const district = (req.query.district || "cumilla").trim().toLowerCase();
+      const transition = (req.query.transition || "aman-mustard").trim().toLowerCase();
+      const snapshot = snapshotService.getHandoffSnapshot(district, transition);
+      if (snapshot && snapshot.data) {
+        const meta = {
+          district,
+          transition,
+          provenance: "SNAPSHOT",
+          databaseConnected: false,
+          snapshotGeneratedAt: snapshot.snapshotMetadata?.generatedAt,
+          sourceDataset: snapshot.snapshotMetadata?.sourceDataset,
+          limitations: snapshot.snapshotMetadata?.limitations,
+        };
+        return successResponse(res, 200, snapshot.data, meta);
+      }
+    } catch {
+      // Ignore
+    }
     next(error);
   }
 }

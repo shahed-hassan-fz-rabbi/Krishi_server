@@ -46,6 +46,41 @@ export async function authenticate(req, res, next) {
 }
 
 /**
+ * Optional authentication middleware.
+ * Attaches req.user if a valid token is present; leaves req.user = null otherwise.
+ * Never fails with 401, allowing guest exploration.
+ */
+export async function optionalAuthenticate(req, res, next) {
+  let token = null;
+
+  if (req.cookies && req.cookies[SESSION_COOKIE_NAME]) {
+    token = req.cookies[SESSION_COOKIE_NAME];
+  }
+
+  if (!token && req.headers.authorization) {
+    const parts = req.headers.authorization.split(" ");
+    if (parts.length === 2 && /^bearer$/i.test(parts[0])) {
+      token = parts[1];
+    }
+  }
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    const decoded = verifyToken(token);
+    const user = await User.findById(decoded.sub);
+    req.user = user || null;
+  } catch {
+    req.user = null;
+  }
+
+  next();
+}
+
+/**
  * Role-based access control middleware.
  * Ensures req.user has one of the allowed roles.
  */

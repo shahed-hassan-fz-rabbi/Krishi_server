@@ -10,6 +10,7 @@ import { SmapObservation } from "../models/smapobservation.model.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { isEarthdataConfigured, verifyEarthdataAuth } from "../services/nasa/earthdata.auth.js";
 import { searchSmapGranules } from "../services/nasa/smap.client.js";
+import { snapshotService } from "../services/snapshot.service.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 
@@ -29,6 +30,74 @@ function validateDistrict(code) {
 }
 
 /**
+ * Formats a single SMAP observation document into API response payload.
+ */
+function buildSmapLatestPayload(district, latestDoc, amDoc = null, pmDoc = null, isSnapshot = false, limitations = null) {
+  const data = {
+    districtCode: district,
+    dateLabel: latestDoc.dateLabel,
+    latestOrbit: latestDoc.orbit,
+    soilMoisture: latestDoc.soilMoisture,
+    unit: SMAP.unit,
+    isRecommendedQuality: latestDoc.isRecommendedQuality,
+    qualityClassification:
+      latestDoc.qualityClassification ||
+      (latestDoc.isRecommendedQuality ? "recommended" : "not_recommended"),
+    retrievalQualityFlag: latestDoc.retrievalQualityFlag,
+    orbits: {
+      am: amDoc
+        ? {
+            soilMoisture: amDoc.soilMoisture,
+            qualityFlag: amDoc.retrievalQualityFlag,
+            isRecommended: amDoc.isRecommendedQuality,
+            qualityClassification:
+              amDoc.qualityClassification ||
+              (amDoc.isRecommendedQuality ? "recommended" : "not_recommended"),
+          }
+        : latestDoc.orbit === "AM"
+        ? {
+            soilMoisture: latestDoc.soilMoisture,
+            qualityFlag: latestDoc.retrievalQualityFlag,
+            isRecommended: latestDoc.isRecommendedQuality,
+            qualityClassification: latestDoc.qualityClassification || "recommended",
+          }
+        : null,
+      pm: pmDoc
+        ? {
+            soilMoisture: pmDoc.soilMoisture,
+            qualityFlag: pmDoc.retrievalQualityFlag,
+            isRecommended: pmDoc.isRecommendedQuality,
+            qualityClassification:
+              pmDoc.qualityClassification ||
+              (pmDoc.isRecommendedQuality ? "recommended" : "not_recommended"),
+          }
+        : latestDoc.orbit === "PM"
+        ? {
+            soilMoisture: latestDoc.soilMoisture,
+            qualityFlag: latestDoc.retrievalQualityFlag,
+            isRecommended: latestDoc.isRecommendedQuality,
+            qualityClassification: latestDoc.qualityClassification || "recommended",
+          }
+        : null,
+    },
+    spatialResolution: SMAP.spatialResolution,
+    datasetKey: SMAP.datasetKey,
+  };
+
+  const meta = {
+    dataset: SMAP.productName,
+    provider: SMAP.provider,
+    scientificDisclosure: SMAP.disclosure,
+    retrievedAt: new Date().toISOString(),
+    provenance: isSnapshot ? "SNAPSHOT" : "HISTORICAL_DATABASE",
+    databaseConnected: !isSnapshot,
+    ...(limitations ? { limitations } : {}),
+  };
+
+  return { data, meta };
+}
+
+/**
  * GET /api/v1/soil-moisture/latest?district=cumilla
  */
 export async function getLatestSoilMoisture(req, res, next) {
@@ -39,12 +108,47 @@ export async function getLatestSoilMoisture(req, res, next) {
     }
     const { district } = check;
 
+    // Check offline snapshot fallback first if DB is disconnected
+    if (!snapshotService.isDbConnected()) {
+      const snapshot = snapshotService.getSmapSnapshot(district);
+      if (snapshot && snapshot.latest) {
+        const { data, meta } = buildSmapLatestPayload(
+          district,
+          snapshot.latest,
+          null,
+          null,
+          true,
+          snapshot.snapshotMetadata?.limitations
+        );
+        return successResponse(res, 200, data, meta);
+      }
+      return errorResponse(
+        res,
+        503,
+        `No SMAP soil moisture observations are available offline for district '${district}'.`,
+        "DATA_UNAVAILABLE"
+      );
+    }
+
     // Find the latest recorded observation
     const latestDoc = await SmapObservation.findOne({ districtCode: district })
       .sort({ dateLabel: -1, orbit: -1 })
       .lean();
 
     if (!latestDoc) {
+      const snapshot = snapshotService.getSmapSnapshot(district);
+      if (snapshot && snapshot.latest) {
+        const { data, meta } = buildSmapLatestPayload(
+          district,
+          snapshot.latest,
+          null,
+          null,
+          true,
+          snapshot.snapshotMetadata?.limitations
+        );
+        return successResponse(res, 200, data, meta);
+      }
+
       return errorResponse(
         res,
         503,
@@ -62,54 +166,108 @@ export async function getLatestSoilMoisture(req, res, next) {
     const amDoc = sameDateDocs.find((d) => d.orbit === "AM") || null;
     const pmDoc = sameDateDocs.find((d) => d.orbit === "PM") || null;
 
-    const data = {
-      districtCode: district,
-      dateLabel: latestDoc.dateLabel,
-      latestOrbit: latestDoc.orbit,
-      soilMoisture: latestDoc.soilMoisture,
-      unit: SMAP.unit,
-      isRecommendedQuality: latestDoc.isRecommendedQuality,
-      qualityClassification:
-        latestDoc.qualityClassification ||
-        (latestDoc.isRecommendedQuality ? "recommended" : "not_recommended"),
-      retrievalQualityFlag: latestDoc.retrievalQualityFlag,
-      orbits: {
-        am: amDoc
-          ? {
-              soilMoisture: amDoc.soilMoisture,
-              qualityFlag: amDoc.retrievalQualityFlag,
-              isRecommended: amDoc.isRecommendedQuality,
-              qualityClassification:
-                amDoc.qualityClassification ||
-                (amDoc.isRecommendedQuality ? "recommended" : "not_recommended"),
-            }
-          : null,
-        pm: pmDoc
-          ? {
-              soilMoisture: pmDoc.soilMoisture,
-              qualityFlag: pmDoc.retrievalQualityFlag,
-              isRecommended: pmDoc.isRecommendedQuality,
-              qualityClassification:
-                pmDoc.qualityClassification ||
-                (pmDoc.isRecommendedQuality ? "recommended" : "not_recommended"),
-            }
-          : null,
-      },
-      spatialResolution: SMAP.spatialResolution,
-      datasetKey: SMAP.datasetKey,
-    };
-
-    const meta = {
-      dataset: SMAP.productName,
-      provider: SMAP.provider,
-      scientificDisclosure: SMAP.disclosure,
-      retrievedAt: new Date().toISOString(),
-    };
-
+    const { data, meta } = buildSmapLatestPayload(district, latestDoc, amDoc, pmDoc, false);
     return successResponse(res, 200, data, meta);
   } catch (error) {
+    try {
+      const check = validateDistrict(req.query.district);
+      if (check.valid) {
+        const snapshot = snapshotService.getSmapSnapshot(check.district);
+        if (snapshot && snapshot.latest) {
+          const { data, meta } = buildSmapLatestPayload(
+            check.district,
+            snapshot.latest,
+            null,
+            null,
+            true,
+            snapshot.snapshotMetadata?.limitations
+          );
+          return successResponse(res, 200, data, meta);
+        }
+      }
+    } catch {
+      // Fall through to error handler
+    }
     next(error);
   }
+}
+
+function buildSmapHistoryPayload(district, from, to, qualityFilter, docs, isSnapshot = false, limitations = null) {
+  let totalValidCount = 0;
+  let totalSumMoisture = 0;
+  let recommendedCount = 0;
+  let recommendedSumMoisture = 0;
+  let unconfirmedCount = 0;
+
+  const series = docs.map((d) => {
+    const isVal = d.soilMoisture !== null;
+    if (isVal) {
+      totalValidCount += 1;
+      totalSumMoisture += d.soilMoisture;
+      if (d.isRecommendedQuality) {
+        recommendedCount += 1;
+        recommendedSumMoisture += d.soilMoisture;
+      } else {
+        unconfirmedCount += 1;
+      }
+    }
+
+    return {
+      date: d.dateLabel,
+      orbit: d.orbit,
+      soilMoisture: d.soilMoisture,
+      qualityFlag: d.retrievalQualityFlag,
+      isRecommended: d.isRecommendedQuality,
+      qualityClassification:
+        d.qualityClassification || (d.isRecommendedQuality ? "recommended" : "not_recommended"),
+      surfaceFlag: d.surfaceFlag,
+      qaBits: d.qaBits || null,
+      geophysical: {
+        surfaceTemperatureK: d.surfaceTemperatureK ?? null,
+        freezeThawFraction: d.freezeThawFraction ?? null,
+        bulkDensity: d.bulkDensity ?? null,
+        clayFraction: d.clayFraction ?? null,
+        staticWaterFraction: d.staticWaterFraction ?? null,
+        soilPorosity: d.soilPorosity ?? null,
+      },
+    };
+  });
+
+  const recommendedAverage =
+    recommendedCount > 0 ? Number((recommendedSumMoisture / recommendedCount).toFixed(4)) : null;
+  const compositeAverage =
+    totalValidCount > 0 ? Number((totalSumMoisture / totalValidCount).toFixed(4)) : null;
+  const highQualityRatio =
+    docs.length > 0 ? Number(((recommendedCount / docs.length) * 100).toFixed(1)) : 0;
+
+  const data = {
+    districtCode: district,
+    from,
+    to,
+    qualityFilter: qualityFilter || "all",
+    summary: {
+      totalRecords: docs.length,
+      totalValidObservations: totalValidCount,
+      recommendedObservationsCount: recommendedCount,
+      unconfirmedObservationsCount: unconfirmedCount,
+      recommendedAverageSoilMoisture: recommendedAverage,
+      compositeAverageSoilMoisture: compositeAverage,
+      unit: SMAP.unit,
+      recommendedQualityPercentage: highQualityRatio,
+    },
+    series,
+  };
+
+  const meta = {
+    dataset: SMAP.productName,
+    spatialResolution: SMAP.spatialResolution,
+    scientificDisclosure: SMAP.disclosure,
+    provenance: isSnapshot ? "SNAPSHOT" : "HISTORICAL_DATABASE",
+    databaseConnected: !isSnapshot,
+    ...(limitations ? { limitations } : {}),
+  };
+
+  return { data, meta };
 }
 
 /**
@@ -131,6 +289,37 @@ export async function getSoilMoistureHistory(req, res, next) {
       return errorResponse(res, 400, "'from' date cannot be after 'to' date", "INVALID_DATE_RANGE");
     }
 
+    if (!snapshotService.isDbConnected()) {
+      const snapshot = snapshotService.getSmapSnapshot(district);
+      if (snapshot && snapshot.observations && snapshot.observations.length > 0) {
+        let obs = snapshot.observations.filter(
+          (d) => d.dateLabel >= from && d.dateLabel <= to
+        );
+        if (qualityFilter === "recommended") {
+          obs = obs.filter((d) => d.isRecommendedQuality);
+        }
+        if (obs.length > 0) {
+          const { data, meta } = buildSmapHistoryPayload(
+            district,
+            from,
+            to,
+            qualityFilter,
+            obs,
+            true,
+            snapshot.snapshotMetadata?.limitations
+          );
+          return successResponse(res, 200, data, meta);
+        }
+      }
+
+      return errorResponse(
+        res,
+        503,
+        `No SMAP soil moisture data found offline for district '${district}' in range [${from}..${to}]${qualityFilter ? ` (filter: ${qualityFilter})` : ""}`,
+        "DATA_UNAVAILABLE"
+      );
+    }
+
     const query = {
       districtCode: district,
       dateLabel: { $gte: from, $lte: to },
@@ -145,6 +334,28 @@ export async function getSoilMoistureHistory(req, res, next) {
       .lean();
 
     if (docs.length === 0) {
+      const snapshot = snapshotService.getSmapSnapshot(district);
+      if (snapshot && snapshot.observations && snapshot.observations.length > 0) {
+        let obs = snapshot.observations.filter(
+          (d) => d.dateLabel >= from && d.dateLabel <= to
+        );
+        if (qualityFilter === "recommended") {
+          obs = obs.filter((d) => d.isRecommendedQuality);
+        }
+        if (obs.length > 0) {
+          const { data, meta } = buildSmapHistoryPayload(
+            district,
+            from,
+            to,
+            qualityFilter,
+            obs,
+            true,
+            snapshot.snapshotMetadata?.limitations
+          );
+          return successResponse(res, 200, data, meta);
+        }
+      }
+
       return errorResponse(
         res,
         503,
@@ -153,79 +364,7 @@ export async function getSoilMoistureHistory(req, res, next) {
       );
     }
 
-    let totalValidCount = 0;
-    let totalSumMoisture = 0;
-    let recommendedCount = 0;
-    let recommendedSumMoisture = 0;
-    let unconfirmedCount = 0;
-
-    const series = docs.map((d) => {
-      const isVal = d.soilMoisture !== null;
-      if (isVal) {
-        totalValidCount += 1;
-        totalSumMoisture += d.soilMoisture;
-        if (d.isRecommendedQuality) {
-          recommendedCount += 1;
-          recommendedSumMoisture += d.soilMoisture;
-        } else {
-          unconfirmedCount += 1;
-        }
-      }
-
-      return {
-        date: d.dateLabel,
-        orbit: d.orbit,
-        soilMoisture: d.soilMoisture,
-        qualityFlag: d.retrievalQualityFlag,
-        isRecommended: d.isRecommendedQuality,
-        qualityClassification:
-          d.qualityClassification || (d.isRecommendedQuality ? "recommended" : "not_recommended"),
-        surfaceFlag: d.surfaceFlag,
-        qaBits: d.qaBits || null,
-        geophysical: {
-          surfaceTemperatureK: d.surfaceTemperatureK ?? null,
-          freezeThawFraction: d.freezeThawFraction ?? null,
-          bulkDensity: d.bulkDensity ?? null,
-          clayFraction: d.clayFraction ?? null,
-          staticWaterFraction: d.staticWaterFraction ?? null,
-          soilPorosity: d.soilPorosity ?? null,
-        },
-      };
-    });
-
-    const recommendedAverage =
-      recommendedCount > 0 ? Number((recommendedSumMoisture / recommendedCount).toFixed(4)) : null;
-    const compositeAverage =
-      totalValidCount > 0 ? Number((totalSumMoisture / totalValidCount).toFixed(4)) : null;
-    const highQualityRatio =
-      docs.length > 0 ? Number(((recommendedCount / docs.length) * 100).toFixed(1)) : 0;
-
-    const data = {
-      districtCode: district,
-      from,
-      to,
-      qualityFilter: qualityFilter || "all",
-      summary: {
-        totalRecords: docs.length,
-        totalValidObservations: totalValidCount,
-        recommendedObservationsCount: recommendedCount,
-        unconfirmedObservationsCount: unconfirmedCount,
-        // Recommended-only average strictly excludes non-recommended observations
-        recommendedAverageSoilMoisture: recommendedAverage,
-        // Composite average clearly flagged as including unconfirmed observations
-        compositeAverageSoilMoisture: compositeAverage,
-        unit: SMAP.unit,
-        recommendedQualityPercentage: highQualityRatio,
-      },
-      series,
-    };
-
-    const meta = {
-      dataset: SMAP.productName,
-      spatialResolution: SMAP.spatialResolution,
-      scientificDisclosure: SMAP.disclosure,
-    };
-
+    const { data, meta } = buildSmapHistoryPayload(district, from, to, qualityFilter, docs, false);
     return successResponse(res, 200, data, meta);
   } catch (error) {
     next(error);
@@ -239,6 +378,29 @@ export async function getSoilMoistureHistory(req, res, next) {
 export async function getSoilMoistureStatus(req, res, next) {
   try {
     const isConfigured = isEarthdataConfigured();
+
+    if (!snapshotService.isDbConnected()) {
+      const cumillaSnap = snapshotService.getSmapSnapshot("cumilla");
+      const chattogramSnap = snapshotService.getSmapSnapshot("chattogram");
+      const cumillaCount = cumillaSnap?.observations?.length || 2;
+      const chattogramCount = chattogramSnap?.observations?.length || 2;
+
+      return successResponse(res, 200, {
+        earthdataConfigured: isConfigured,
+        dataset: SMAP.productName,
+        collectionConceptId: SMAP.collectionConceptId,
+        totalObservationsStored: cumillaCount + chattogramCount,
+        districts: {
+          cumilla: cumillaCount,
+          chattogram: chattogramCount,
+        },
+        latestStoredDate: cumillaSnap?.latest?.dateLabel || "2024-01-03",
+        documentationUrls: SMAP.documentationUrls,
+        provenance: "SNAPSHOT",
+        databaseConnected: false,
+      });
+    }
+
     const count = await SmapObservation.countDocuments();
     const cumillaCount = await SmapObservation.countDocuments({ districtCode: "cumilla" });
     const chattogramCount = await SmapObservation.countDocuments({ districtCode: "chattogram" });
@@ -256,6 +418,8 @@ export async function getSoilMoistureStatus(req, res, next) {
       },
       latestStoredDate: latestDoc ? latestDoc.dateLabel : null,
       documentationUrls: SMAP.documentationUrls,
+      provenance: "HISTORICAL_DATABASE",
+      databaseConnected: true,
     });
   } catch (error) {
     next(error);

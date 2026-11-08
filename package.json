@@ -13,9 +13,10 @@
     "probe:smap": "node src/jobs/probe-smap.js",
     "download:smap": "node src/jobs/download-smap-harmony.js",
     "test:ingest": "node src/jobs/run-controlled-test.js",
-    "test:unit": "node --test tests/ingestion.service.test.js tests/power.validator.test.js tests/smap.validator.test.js tests/modis.validator.test.js tests/python.contract.test.js tests/api.validation.test.js tests/health.controller.test.js tests/auth.validator.test.js",
-    "test:integration": "node --test tests/api.endpoints.test.js tests/auth.endpoints.test.js tests/gis.routes.test.js tests/cropcalendar.routes.test.js",
-    "test": "npm run test:unit && npm run test:integration"
+    "test:unit": "node --test tests/ingestion.service.test.js tests/power.validator.test.js tests/smap.validator.test.js tests/modis.validator.test.js tests/python.contract.test.js tests/api.validation.test.js tests/health.controller.test.js tests/auth.validator.test.js tests/assistant.tools.test.js",
+    "test:integration": "node --test tests/api.endpoints.test.js tests/auth.endpoints.test.js tests/gis.routes.test.js tests/cropcalendar.routes.test.js tests/assistant.chat.test.js tests/assistant.fallback.test.js tests/conversation.security.test.js tests/farm.endpoints.test.js tests/crop.lifecycle.test.js tests/crop.planning.test.js tests/farm.environment.test.js tests/farm.activity.test.js tests/farm.notification.test.js tests/assistant.farm.test.js",
+    "test:offline": "node --test tests/offline.readiness.test.js tests/phase8_2_verification.js",
+    "test": "npm run test:unit && npm run test:offline && npm run test:integration"
   },
   "author": "codeinfinite19 <shahedhassan572@gmail.com>",
   "license": "MIT",
@@ -23,6 +24,7 @@
     "node": ">=18.18"
   },
   "dependencies": {
+    "@google/genai": "^3.0.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

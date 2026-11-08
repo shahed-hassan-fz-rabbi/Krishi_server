@@ -155,9 +155,9 @@ after(async () => {
   if (server?.listening) await new Promise((resolve) => server.close(resolve));
   if (!databaseConnected) return;
   try {
-    await NasaObservation.deleteMany({ ingestionRunId: fixtureRunId });
-    await NasaDataset.deleteOne({ _id: POWER.datasetKey });
-    await District.deleteMany({ code: { $in: DISTRICTS.map((district) => district.code) } });
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.db.dropDatabase();
+    }
   } finally {
     await disconnectDatabase();
   }

@@ -18,6 +18,7 @@ import { MODIS } from "../config/modis.config.js";
 import { SmapObservation } from "../models/smapobservation.model.js";
 import { ModisObservation } from "../models/modisobservation.model.js";
 import { errorResponse, successResponse } from "../utils/response.js";
+import { snapshotService } from "../services/snapshot.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -161,15 +162,41 @@ export async function getGisLayers(req, res, next) {
     const geo = loadGeoJson();
     const boundaryFeature = geo.features.find((f) => f.properties.adm2_pcode === mapping.pCode);
 
-    // Fetch latest SMAP observation from MongoDB
-    const latestSmap = await SmapObservation.findOne({ districtCode })
-      .sort({ dateLabel: -1 })
-      .lean();
+    // Fetch latest SMAP observation from MongoDB or snapshot fallback
+    let latestSmap = null;
+    let latestModis = null;
 
-    // Fetch latest MODIS observation from MongoDB
-    const latestModis = await ModisObservation.findOne({ districtCode })
-      .sort({ dateLabel: -1 })
-      .lean();
+    if (snapshotService.isDbConnected()) {
+      try {
+        latestSmap = await SmapObservation.findOne({ districtCode })
+          .sort({ dateLabel: -1 })
+          .lean();
+      } catch {
+        latestSmap = null;
+      }
+
+      try {
+        latestModis = await ModisObservation.findOne({ districtCode })
+          .sort({ dateLabel: -1 })
+          .lean();
+      } catch {
+        latestModis = null;
+      }
+    }
+
+    if (!latestSmap) {
+      const smapSnap = snapshotService.getSmapSnapshot(districtCode);
+      if (smapSnap && smapSnap.latest) {
+        latestSmap = smapSnap.latest;
+      }
+    }
+
+    if (!latestModis) {
+      const modisSnap = snapshotService.getModisSnapshot(districtCode);
+      if (modisSnap && modisSnap.latest) {
+        latestModis = modisSnap.latest;
+      }
+    }
 
     // Construct Spatial Layers Payload
     const layers = {
@@ -253,6 +280,8 @@ export async function getGisLayers(req, res, next) {
       boundaryProvenance: "BBS 2020 Admin-2 / UN OCHA HDX",
       smapProvenance: SMAP.datasetKey,
       modisProvenance: MODIS.datasetKey,
+      provenance: !snapshotService.isDbConnected() ? "SNAPSHOT" : "HISTORICAL_DATABASE",
+      databaseConnected: snapshotService.isDbConnected(),
     });
   } catch (error) {
     next(error);
