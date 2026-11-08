@@ -30,3 +30,19 @@ Thumbs.db
 # ---- Build / cache ----
 dist/
 coverage/
+
+# ---- Python Bytecode ----
+__pycache__/
+*.pyc
+*.pyo
+
+# ---- NASA Raw Data Staging (Never commit satellite binaries) ----
+data/smap/raw/
+data/modis/raw/
+*.h5
+*.hdf
+*.nc4
+*.nc
+*.tif
+*.tiff
+

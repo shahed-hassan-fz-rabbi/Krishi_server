@@ -10,9 +10,11 @@
     "dev": "nodemon src/server.js",
     "seed:districts": "node src/jobs/seed-districts.js",
     "ingest:power": "node src/jobs/ingest-power.js",
+    "probe:smap": "node src/jobs/probe-smap.js",
+    "download:smap": "node src/jobs/download-smap-harmony.js",
     "test:ingest": "node src/jobs/run-controlled-test.js",
-    "test:unit": "node --test tests/ingestion.service.test.js tests/power.validator.test.js tests/python.contract.test.js tests/api.validation.test.js tests/health.controller.test.js tests/auth.validator.test.js",
-    "test:integration": "node --test tests/api.endpoints.test.js tests/auth.endpoints.test.js",
+    "test:unit": "node --test tests/ingestion.service.test.js tests/power.validator.test.js tests/smap.validator.test.js tests/modis.validator.test.js tests/python.contract.test.js tests/api.validation.test.js tests/health.controller.test.js tests/auth.validator.test.js",
+    "test:integration": "node --test tests/api.endpoints.test.js tests/auth.endpoints.test.js tests/gis.routes.test.js tests/cropcalendar.routes.test.js",
     "test": "npm run test:unit && npm run test:integration"
   },
   "author": "codeinfinite19 <shahedhassan572@gmail.com>",

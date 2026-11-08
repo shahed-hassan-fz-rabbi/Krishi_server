@@ -1,0 +1,625 @@
+{
+  "metadata": {
+    "title": "Official Bangladesh Agro-Meteorological Crop Calendars",
+    "authority": "Bangladesh Agro-Meteorological Information Service (BAMIS) / Department of Agricultural Extension (DAE) / BRRI / BARI",
+    "ministry": "Ministry of Agriculture (MoA), Government of the People's Republic of Bangladesh",
+    "version": "BAMIS Official Agro-Climatic Advisory Series (2019-2024)",
+    "crs": "WGS 84 (EPSG:4326)",
+    "districts": ["cumilla", "chattogram"],
+    "crops": ["monsoon_aman", "boro_rice", "aus_rice", "mustard"]
+  },
+  "crops": [
+    {
+      "cropId": "monsoon_aman",
+      "nameEn": "Transplanted Aman Rice",
+      "nameBn": "রোপা আমন ধান",
+      "scientificName": "Oryza sativa L. (T. Aman)",
+      "season": "Kharif-2",
+      "seasonBn": "খরিফ-২",
+      "typicalVarieties": "BRRI dhan49, BRRI dhan71, BRRI dhan75, BRRI dhan87, Binasail, Pajam",
+      "districts": {
+        "cumilla": {
+          "districtCode": "cumilla",
+          "districtName": "Cumilla",
+          "daeRegion": "Cumilla Region (কুমিল্লা অঞ্চল: কুমিল্লা, চাঁদপুর, ব্রাহ্মণবাড়িয়া)",
+          "daeRegionId": 12,
+          "totalDurationDays": 133,
+          "sourceDocumentTitle": "আমন ধানের আবহাওয়া পঞ্জিকা: কুমিল্লা অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE)",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/08/04/4332.pdf",
+          "sowingPeriod": "Late June to Early July (Mid Asharh)",
+          "transplantingPeriod": "Mid July to Mid August (Srabon)",
+          "harvestingPeriod": "Mid November to Early December (Agrahayan)",
+          "standardWeeksRange": [26, 46],
+          "waterRequirementMmTotal": 631,
+          "stages": [
+            {
+              "stageId": "seedbed",
+              "stageNameEn": "Seedbed & Germination",
+              "stageNameBn": "অঙ্কুরোদগম ও বীজতলা তৈরি",
+              "standardWeeks": [26, 29],
+              "durationDays": 25,
+              "waterRequirementMm": 76,
+              "optimalTempRange": [23, 27],
+              "minimumTempC": 10,
+              "maximumTempC": 35,
+              "weatherHazards": "Heavy rainfall (>50 mm/day) submersing seedlings; strong winds >50 km/h."
+            },
+            {
+              "stageId": "transplanting_early_veg",
+              "stageNameEn": "Transplanting & Early Vegetative",
+              "stageNameBn": "চারা রোপণ ও প্রাথমিক বৃদ্ধি",
+              "standardWeeks": [30, 33],
+              "durationDays": 28,
+              "waterRequirementMm": 120,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 15,
+              "maximumTempC": 35,
+              "weatherHazards": "Prolonged dry spells (>7 days without rain); flash floods in eastern floodplains."
+            },
+            {
+              "stageId": "tillering_panicle",
+              "stageNameEn": "Active Tillering to Panicle Initiation",
+              "stageNameBn": "কুশি গজানো ও থোড় আসা",
+              "standardWeeks": [34, 37],
+              "durationDays": 30,
+              "waterRequirementMm": 190,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 18,
+              "maximumTempC": 35,
+              "weatherHazards": "Water stress reduces productive tillers; leaf folder and stem borer flare-up."
+            },
+            {
+              "stageId": "flowering_milking",
+              "stageNameEn": "Flowering & Grain Filling",
+              "stageNameBn": "ফুল ফোটা ও দানা গঠন",
+              "standardWeeks": [38, 41],
+              "durationDays": 25,
+              "waterRequirementMm": 145,
+              "optimalTempRange": [24, 30],
+              "minimumTempC": 15,
+              "maximumTempC": 35,
+              "weatherHazards": "Drought/moisture deficit causes sterility; strong winds (>30 km/h) cause grain abortion."
+            },
+            {
+              "stageId": "ripening_harvest",
+              "stageNameEn": "Ripening & Harvesting",
+              "stageNameBn": "দানা পাকা ও ফসল কর্তন",
+              "standardWeeks": [42, 46],
+              "durationDays": 25,
+              "waterRequirementMm": 100,
+              "optimalTempRange": [20, 28],
+              "minimumTempC": 12,
+              "maximumTempC": 32,
+              "weatherHazards": "Untimely rainfall (>50 mm/day) causing lodging and grain sprouting."
+            }
+          ]
+        },
+        "chattogram": {
+          "districtCode": "chattogram",
+          "districtName": "Chattogram",
+          "daeRegion": "Chattogram Region (চট্টগ্রাম অঞ্চল: চট্টগ্রাম, কক্সবাজার, লক্ষ্মীপুর, নোয়াখালী, ফেনী)",
+          "daeRegionId": 13,
+          "totalDurationDays": 135,
+          "sourceDocumentTitle": "আমন ধানের আবহাওয়া পঞ্জিকা: চট্টগ্রাম অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE)",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/08/04/4335.pdf",
+          "sowingPeriod": "Early July to Mid July (Late Asharh)",
+          "transplantingPeriod": "Late July to Late August (Srabon-Bhadro)",
+          "harvestingPeriod": "Late November to Mid December (Agrahayan)",
+          "standardWeeksRange": [27, 47],
+          "waterRequirementMmTotal": 631,
+          "stages": [
+            {
+              "stageId": "seedbed",
+              "stageNameEn": "Seedbed & Germination",
+              "stageNameBn": "অঙ্কুরোদগম ও বীজতলা তৈরি",
+              "standardWeeks": [27, 30],
+              "durationDays": 25,
+              "waterRequirementMm": 76,
+              "optimalTempRange": [23, 27],
+              "minimumTempC": 10,
+              "maximumTempC": 35,
+              "weatherHazards": "High coastal tidal surge; heavy continuous rainfall (>100 mm/day)."
+            },
+            {
+              "stageId": "transplanting_early_veg",
+              "stageNameEn": "Transplanting & Early Vegetative",
+              "stageNameBn": "চারা রোপণ ও প্রাথমিক বৃদ্ধি",
+              "standardWeeks": [31, 34],
+              "durationDays": 28,
+              "waterRequirementMm": 120,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 15,
+              "maximumTempC": 35,
+              "weatherHazards": "Coastal salinity intrusion during low freshwater inflow; water stagnation."
+            },
+            {
+              "stageId": "tillering_panicle",
+              "stageNameEn": "Active Tillering to Panicle Initiation",
+              "stageNameBn": "কুশি গজানো ও থোড় আসা",
+              "standardWeeks": [35, 38],
+              "durationDays": 30,
+              "waterRequirementMm": 190,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 18,
+              "maximumTempC": 35,
+              "weatherHazards": "Bacterial leaf blight (temp 28-30°C, RH 80-90%); sheath blight."
+            },
+            {
+              "stageId": "flowering_milking",
+              "stageNameEn": "Flowering & Grain Filling",
+              "stageNameBn": "ফুল ফোটা ও দানা গঠন",
+              "standardWeeks": [39, 42],
+              "durationDays": 26,
+              "waterRequirementMm": 145,
+              "optimalTempRange": [24, 30],
+              "minimumTempC": 15,
+              "maximumTempC": 35,
+              "weatherHazards": "October cyclonic depressions; high humidity (>90%) promoting sheath rot."
+            },
+            {
+              "stageId": "ripening_harvest",
+              "stageNameEn": "Ripening & Harvesting",
+              "stageNameBn": "দানা পাকা ও ফসল কর্তন",
+              "standardWeeks": [43, 47],
+              "durationDays": 26,
+              "waterRequirementMm": 100,
+              "optimalTempRange": [20, 28],
+              "minimumTempC": 12,
+              "maximumTempC": 32,
+              "weatherHazards": "Coastal late cyclonic winds; dew accumulation delaying morning harvest."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "cropId": "boro_rice",
+      "nameEn": "Boro Rice",
+      "nameBn": "বোরো ধান",
+      "scientificName": "Oryza sativa L. (Boro)",
+      "season": "Robi",
+      "seasonBn": "রবি",
+      "typicalVarieties": "BRRI dhan28, BRRI dhan29, BRRI dhan58, BRRI dhan89, BRRI dhan92, Bangabandhu dhan100",
+      "districts": {
+        "cumilla": {
+          "districtCode": "cumilla",
+          "districtName": "Cumilla",
+          "daeRegion": "Cumilla Region (কুমিল্লা অঞ্চল)",
+          "daeRegionId": 12,
+          "totalDurationDays": 155,
+          "sourceDocumentTitle": "বোরো ধানের আবহাওয়া পঞ্জিকা: কুমিল্লা অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE)",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/08/04/4347.pdf",
+          "sowingPeriod": "Mid November to Early December (Agrahayan)",
+          "transplantingPeriod": "Late December to Mid January (Poush)",
+          "harvestingPeriod": "Mid April to Early May (Baishakh)",
+          "standardWeeksRange": [44, 18],
+          "waterRequirementMmTotal": 1250,
+          "stages": [
+            {
+              "stageId": "seedbed",
+              "stageNameEn": "Seedbed Preparation & Sowing",
+              "stageNameBn": "বীজতলা তৈরি ও বীজ বপন",
+              "standardWeeks": [44, 48],
+              "durationDays": 35,
+              "waterRequirementMm": 110,
+              "optimalTempRange": [20, 25],
+              "minimumTempC": 10,
+              "maximumTempC": 30,
+              "weatherHazards": "Severe cold injury (temp <10°C) causing seedling yellowing and stunting."
+            },
+            {
+              "stageId": "transplanting_early_veg",
+              "stageNameEn": "Land Preparation & Transplanting",
+              "stageNameBn": "জমি তৈরি ও চারা রোপণ",
+              "standardWeeks": [49, 2],
+              "durationDays": 30,
+              "waterRequirementMm": 220,
+              "optimalTempRange": [18, 26],
+              "minimumTempC": 12,
+              "maximumTempC": 30,
+              "weatherHazards": "Cold water shock; delayed rooting if nighttime temperature <12°C."
+            },
+            {
+              "stageId": "tillering",
+              "stageNameEn": "Tillering & Vegetative Growth",
+              "stageNameBn": "কুশি গজানো ও অঙ্গজ বৃদ্ধি",
+              "standardWeeks": [3, 7],
+              "durationDays": 30,
+              "waterRequirementMm": 320,
+              "optimalTempRange": [20, 28],
+              "minimumTempC": 15,
+              "maximumTempC": 32,
+              "weatherHazards": "Irrigation pump breakdown / ground water depletion; blast risk."
+            },
+            {
+              "stageId": "panicle_flowering",
+              "stageNameEn": "Panicle Initiation & Flowering",
+              "stageNameBn": "থোড় আসা ও ফুল ফোটা",
+              "standardWeeks": [8, 12],
+              "durationDays": 30,
+              "waterRequirementMm": 350,
+              "optimalTempRange": [24, 30],
+              "minimumTempC": 18,
+              "maximumTempC": 35,
+              "weatherHazards": "Heat shock (>35°C) or cold sterilization (<18°C) causing high floret sterility."
+            },
+            {
+              "stageId": "ripening_harvest",
+              "stageNameEn": "Grain Ripening & Harvesting",
+              "stageNameBn": "দানা পাকা ও ফসল কর্তন",
+              "standardWeeks": [13, 18],
+              "durationDays": 30,
+              "waterRequirementMm": 150,
+              "optimalTempRange": [24, 32],
+              "minimumTempC": 18,
+              "maximumTempC": 36,
+              "weatherHazards": "Early Nor'wester (Kalbaishakhi) thunderstorms, hail storms, flash floods."
+            }
+          ]
+        },
+        "chattogram": {
+          "districtCode": "chattogram",
+          "districtName": "Chattogram",
+          "daeRegion": "Chattogram Region (চট্টগ্রাম অঞ্চল)",
+          "daeRegionId": 13,
+          "totalDurationDays": 150,
+          "sourceDocumentTitle": "বোরো ধানের আবহাওয়া পঞ্জিকা: চট্টগ্রাম অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE)",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/08/04/4348.pdf",
+          "sowingPeriod": "Mid November to Early December (Agrahayan)",
+          "transplantingPeriod": "Late December to Mid January (Poush)",
+          "harvestingPeriod": "Mid April to Early May (Baishakh)",
+          "standardWeeksRange": [44, 18],
+          "waterRequirementMmTotal": 1200,
+          "stages": [
+            {
+              "stageId": "seedbed",
+              "stageNameEn": "Seedbed Preparation & Sowing",
+              "stageNameBn": "বীজতলা তৈরি ও বীজ বপন",
+              "standardWeeks": [44, 48],
+              "durationDays": 35,
+              "waterRequirementMm": 110,
+              "optimalTempRange": [20, 25],
+              "minimumTempC": 10,
+              "maximumTempC": 30,
+              "weatherHazards": "Winter maritime fog; seedling cold stress if temperature drops <10°C."
+            },
+            {
+              "stageId": "transplanting_early_veg",
+              "stageNameEn": "Land Preparation & Transplanting",
+              "stageNameBn": "জমি তৈরি ও চারা রোপণ",
+              "standardWeeks": [49, 2],
+              "durationDays": 30,
+              "waterRequirementMm": 220,
+              "optimalTempRange": [18, 26],
+              "minimumTempC": 12,
+              "maximumTempC": 30,
+              "weatherHazards": "Salinity build-up in coastal surface irrigation canals during winter."
+            },
+            {
+              "stageId": "tillering",
+              "stageNameEn": "Tillering & Vegetative Growth",
+              "stageNameBn": "কুশি গজানো ও অঙ্গজ বৃদ্ধি",
+              "standardWeeks": [3, 7],
+              "durationDays": 30,
+              "waterRequirementMm": 310,
+              "optimalTempRange": [20, 28],
+              "minimumTempC": 15,
+              "maximumTempC": 32,
+              "weatherHazards": "Stem borer infestation; moisture stress during dry spells."
+            },
+            {
+              "stageId": "panicle_flowering",
+              "stageNameEn": "Panicle Initiation & Flowering",
+              "stageNameBn": "থোড় আসা ও ফুল ফোটা",
+              "standardWeeks": [8, 12],
+              "durationDays": 28,
+              "waterRequirementMm": 340,
+              "optimalTempRange": [24, 30],
+              "minimumTempC": 18,
+              "maximumTempC": 35,
+              "weatherHazards": "Coastal pre-monsoon heat sterility (>35°C)."
+            },
+            {
+              "stageId": "ripening_harvest",
+              "stageNameEn": "Grain Ripening & Harvesting",
+              "stageNameBn": "দানা পাকা ও ফসল কর্তন",
+              "standardWeeks": [13, 18],
+              "durationDays": 27,
+              "waterRequirementMm": 150,
+              "optimalTempRange": [24, 32],
+              "minimumTempC": 18,
+              "maximumTempC": 36,
+              "weatherHazards": "Coastal squalls and early cyclones; heavy pre-monsoon precipitation."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "cropId": "aus_rice",
+      "nameEn": "Aus Rice",
+      "nameBn": "আউশ ধান",
+      "scientificName": "Oryza sativa L. (Aus)",
+      "season": "Kharif-1",
+      "seasonBn": "খরিফ-১",
+      "typicalVarieties": "BRRI dhan48, BRRI dhan82, BRRI dhan85, BRRI dhan98, Parija",
+      "districts": {
+        "cumilla": {
+          "districtCode": "cumilla",
+          "districtName": "Cumilla",
+          "daeRegion": "Cumilla Region (কুমিল্লা অঞ্চল)",
+          "daeRegionId": 12,
+          "totalDurationDays": 105,
+          "sourceDocumentTitle": "আউশ ধানের আবহাওয়া পঞ্জিকা: কুমিল্লা অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE)",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/08/04/4319.pdf",
+          "sowingPeriod": "Mid March to Mid April (Chaitra-Baishakh)",
+          "transplantingPeriod": "Mid April to Early May (Baishakh)",
+          "harvestingPeriod": "Late June to Mid July (Asharh)",
+          "standardWeeksRange": [12, 28],
+          "waterRequirementMmTotal": 510,
+          "stages": [
+            {
+              "stageId": "sowing_seedbed",
+              "stageNameEn": "Sowing & Seedbed",
+              "stageNameBn": "বীজ বপন ও বীজতলা তৈরি",
+              "standardWeeks": [12, 15],
+              "durationDays": 25,
+              "waterRequirementMm": 70,
+              "optimalTempRange": [24, 30],
+              "minimumTempC": 18,
+              "maximumTempC": 36,
+              "weatherHazards": "Pre-monsoon drought / delayed Nor'wester rain delaying land preparation."
+            },
+            {
+              "stageId": "transplanting_vegetative",
+              "stageNameEn": "Transplanting & Vegetative Growth",
+              "stageNameBn": "চারা রোপণ ও অঙ্গজ বৃদ্ধি",
+              "standardWeeks": [16, 20],
+              "durationDays": 30,
+              "waterRequirementMm": 140,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 20,
+              "maximumTempC": 37,
+              "weatherHazards": "Early flash floods from upstream catchment; weed competition."
+            },
+            {
+              "stageId": "panicle_flowering",
+              "stageNameEn": "Panicle Initiation & Flowering",
+              "stageNameBn": "থোড় আসা ও ফুল ফোটা",
+              "standardWeeks": [21, 24],
+              "durationDays": 25,
+              "waterRequirementMm": 180,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 20,
+              "maximumTempC": 36,
+              "weatherHazards": "Continuous overcast weather reducing solar radiation; blast disease."
+            },
+            {
+              "stageId": "ripening_harvest",
+              "stageNameEn": "Ripening & Harvesting",
+              "stageNameBn": "দানা পাকা ও ফসল কর্তন",
+              "standardWeeks": [25, 28],
+              "durationDays": 25,
+              "waterRequirementMm": 120,
+              "optimalTempRange": [24, 32],
+              "minimumTempC": 20,
+              "maximumTempC": 35,
+              "weatherHazards": "Heavy monsoon rains during harvest causing grain sprouting on wet soil."
+            }
+          ]
+        },
+        "chattogram": {
+          "districtCode": "chattogram",
+          "districtName": "Chattogram",
+          "daeRegion": "Chattogram Region (চট্টগ্রাম অঞ্চল)",
+          "daeRegionId": 13,
+          "totalDurationDays": 110,
+          "sourceDocumentTitle": "আউশ ধানের আবহাওয়া পঞ্জিকা: চট্টগ্রাম অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE)",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/08/04/4320.pdf",
+          "sowingPeriod": "Late March to Mid April (Chaitra-Baishakh)",
+          "transplantingPeriod": "Late April to Early May (Baishakh)",
+          "harvestingPeriod": "Late June to Mid July (Asharh)",
+          "standardWeeksRange": [13, 29],
+          "waterRequirementMmTotal": 520,
+          "stages": [
+            {
+              "stageId": "sowing_seedbed",
+              "stageNameEn": "Sowing & Seedbed",
+              "stageNameBn": "বীজ বপন ও বীজতলা তৈরি",
+              "standardWeeks": [13, 16],
+              "durationDays": 25,
+              "waterRequirementMm": 75,
+              "optimalTempRange": [24, 30],
+              "minimumTempC": 18,
+              "maximumTempC": 36,
+              "weatherHazards": "Coastal high salinity before monsoon onset; heat stress."
+            },
+            {
+              "stageId": "transplanting_vegetative",
+              "stageNameEn": "Transplanting & Vegetative Growth",
+              "stageNameBn": "চারা রোপণ ও অঙ্গজ বৃদ্ধি",
+              "standardWeeks": [17, 21],
+              "durationDays": 30,
+              "waterRequirementMm": 145,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 20,
+              "maximumTempC": 37,
+              "weatherHazards": "Inundation of low-lying coastal polders by early monsoon rain."
+            },
+            {
+              "stageId": "panicle_flowering",
+              "stageNameEn": "Panicle Initiation & Flowering",
+              "stageNameBn": "থোড় আসা ও ফুল ফোটা",
+              "standardWeeks": [22, 25],
+              "durationDays": 25,
+              "waterRequirementMm": 180,
+              "optimalTempRange": [25, 32],
+              "minimumTempC": 20,
+              "maximumTempC": 36,
+              "weatherHazards": "High atmospheric humidity (>90%) promoting sheath blight."
+            },
+            {
+              "stageId": "ripening_harvest",
+              "stageNameEn": "Ripening & Harvesting",
+              "stageNameBn": "দানা পাকা ও ফসল কর্তন",
+              "standardWeeks": [26, 29],
+              "durationDays": 25,
+              "waterRequirementMm": 120,
+              "optimalTempRange": [24, 32],
+              "minimumTempC": 20,
+              "maximumTempC": 35,
+              "weatherHazards": "Heavy monsoon downpours and waterlogging during threshing."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "cropId": "mustard",
+      "nameEn": "Mustard",
+      "nameBn": "সরিষা",
+      "scientificName": "Brassica juncea / Brassica campestris (Mustard)",
+      "season": "Robi",
+      "seasonBn": "রবি",
+      "typicalVarieties": "BARI Sarisha-14, BARI Sarisha-15, BARI Sarisha-17, BARI Sarisha-18, Tori-7",
+      "districts": {
+        "cumilla": {
+          "districtCode": "cumilla",
+          "districtName": "Cumilla",
+          "daeRegion": "Cumilla Region (কুমিল্লা অঞ্চল)",
+          "daeRegionId": 12,
+          "totalDurationDays": 85,
+          "sourceDocumentTitle": "সরিষা আবহাওয়া পঞ্জিকা: কুমিল্লা অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE) / BARI",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/12/30/10999.pdf",
+          "sowingPeriod": "Early November to Mid November (Kartik)",
+          "transplantingPeriod": null,
+          "harvestingPeriod": "Late January to Mid February (Magh)",
+          "standardWeeksRange": [45, 6],
+          "waterRequirementMmTotal": 280,
+          "stages": [
+            {
+              "stageId": "sowing_germination",
+              "stageNameEn": "Sowing & Seedling Emergence",
+              "stageNameBn": "বীজ বপন ও অঙ্কুরোদগম",
+              "standardWeeks": [45, 47],
+              "durationDays": 18,
+              "waterRequirementMm": 45,
+              "optimalTempRange": [15, 27],
+              "minimumTempC": 10,
+              "maximumTempC": 32,
+              "weatherHazards": "Excess residual soil moisture causing seed rot; soil crusting."
+            },
+            {
+              "stageId": "vegetative_branching",
+              "stageNameEn": "Vegetative Growth & Branching",
+              "stageNameBn": "অঙ্গজ বৃদ্ধি ও শাখা বিস্তার",
+              "standardWeeks": [48, 50],
+              "durationDays": 22,
+              "waterRequirementMm": 75,
+              "optimalTempRange": [15, 25],
+              "minimumTempC": 10,
+              "maximumTempC": 30,
+              "weatherHazards": "Moisture deficit at branching; light irrigation recommended."
+            },
+            {
+              "stageId": "flowering_podding",
+              "stageNameEn": "Flowering & Pod Formation",
+              "stageNameBn": "ফুল ফোটা ও শুঁটি গঠন",
+              "standardWeeks": [51, 2],
+              "durationDays": 25,
+              "waterRequirementMm": 100,
+              "optimalTempRange": [13, 25],
+              "minimumTempC": 8,
+              "maximumTempC": 28,
+              "weatherHazards": "Prolonged dense fog and cloudy weather causing severe aphid and Alternaria blight flare-up."
+            },
+            {
+              "stageId": "maturation_harvest",
+              "stageNameEn": "Siliqua Maturation & Harvesting",
+              "stageNameBn": "শুঁটি পরিপক্বতা ও ফসল কর্তন",
+              "standardWeeks": [3, 6],
+              "durationDays": 20,
+              "waterRequirementMm": 60,
+              "optimalTempRange": [16, 28],
+              "minimumTempC": 10,
+              "maximumTempC": 32,
+              "weatherHazards": "Sudden heat wave (>30°C) causing pod shattering and shriveled seeds."
+            }
+          ]
+        },
+        "chattogram": {
+          "districtCode": "chattogram",
+          "districtName": "Chattogram",
+          "daeRegion": "Chattogram Region (চট্টগ্রাম অঞ্চল)",
+          "daeRegionId": 13,
+          "totalDurationDays": 90,
+          "sourceDocumentTitle": "সরিষা আবহাওয়া পঞ্জিকা: চট্টগ্রাম অঞ্চল, বাংলাদেশ",
+          "sourcePublisher": "BAMIS, Department of Agricultural Extension (DAE) / BARI",
+          "sourceDocumentUrl": "https://www.bamis.gov.bd/res/public/calendars/2019/12/30/11000.pdf",
+          "sowingPeriod": "Late November to Early December (Agrahayan)",
+          "transplantingPeriod": null,
+          "harvestingPeriod": "Mid February to Early March (Falgun)",
+          "standardWeeksRange": [47, 9],
+          "waterRequirementMmTotal": 290,
+          "stages": [
+            {
+              "stageId": "sowing_germination",
+              "stageNameEn": "Sowing & Seedling Emergence",
+              "stageNameBn": "বীজ বপন ও অঙ্কুরোদগম",
+              "standardWeeks": [47, 49],
+              "durationDays": 20,
+              "waterRequirementMm": 50,
+              "optimalTempRange": [16, 28],
+              "minimumTempC": 12,
+              "maximumTempC": 32,
+              "weatherHazards": "Delayed coastal Aman harvest delaying sowing; coastal morning dew."
+            },
+            {
+              "stageId": "vegetative_branching",
+              "stageNameEn": "Vegetative Growth & Branching",
+              "stageNameBn": "অঙ্গজ বৃদ্ধি ও শাখা বিস্তার",
+              "standardWeeks": [50, 52],
+              "durationDays": 22,
+              "waterRequirementMm": 75,
+              "optimalTempRange": [15, 26],
+              "minimumTempC": 12,
+              "maximumTempC": 30,
+              "weatherHazards": "Coastal soil salinity in late vegetative stage if un-irrigated."
+            },
+            {
+              "stageId": "flowering_podding",
+              "stageNameEn": "Flowering & Pod Formation",
+              "stageNameBn": "ফুল ফোটা ও শুঁটি গঠন",
+              "standardWeeks": [1, 5],
+              "durationDays": 28,
+              "waterRequirementMm": 105,
+              "optimalTempRange": [14, 25],
+              "minimumTempC": 10,
+              "maximumTempC": 28,
+              "weatherHazards": "Coastal high humidity (>85%) and morning fog promoting Alternaria leaf spot."
+            },
+            {
+              "stageId": "maturation_harvest",
+              "stageNameEn": "Siliqua Maturation & Harvesting",
+              "stageNameBn": "শুঁটি পরিপক্বতা ও ফসল কর্তন",
+              "standardWeeks": [6, 9],
+              "durationDays": 20,
+              "waterRequirementMm": 60,
+              "optimalTempRange": [18, 30],
+              "minimumTempC": 14,
+              "maximumTempC": 32,
+              "weatherHazards": "Early pre-monsoon coastal squalls causing lodging and pod shattering."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

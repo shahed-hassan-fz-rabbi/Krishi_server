@@ -126,6 +126,30 @@ The backend ingests and validates six parameters directly relevant to soil moist
 
 *Note on Gridded Earth Observations:* NASA POWER point data is produced via spatial interpolation from gridded satellite and meteorological assimilation models (~0.5° × 0.5° resolution). It provides regional climatological baselines but does not substitute for on-site micro-sensor measurements.
 
+### Additional Integrated Datasets and Provenance
+
+#### 1. NASA SMAP Radiometer Soil Moisture (`SPL3SMP_E V006`)
+- **Product:** SMAP L3 Radiometer Global Daily 9 km EASE-Grid Soil Moisture (`SPL3SMP_E`) Version 6.
+- **Provider:** NASA National Snow and Ice Data Center (NSIDC) DAAC.
+- **Data Layers:** Volumetric Soil Moisture (`soil_moisture`, m³/m³), Retrieval Quality Flag (`retrieval_qual_flag`), Surface Flag (`surface_flag`), Surface Temperature (`surface_temperature`, K).
+- **Physical Interpretation:** Flag 0/8 (`recommended`), Flag 9 (`not_recommended` - coastal/retrieval quality condition). Stored with idempotent compound unique index `districtCode + dateLabel + orbit`.
+
+#### 2. NASA Terra MODIS Vegetation Indices (`MOD13Q1.061`)
+- **Product:** MODIS/Terra Vegetation Indices 16-Day L3 Global 250 m SIN Grid (`MOD13Q1`) Collection 061.
+- **Provider:** NASA LP DAAC via Application for Extracting and Exploring Analysis Ready Samples (AppEEARS).
+- **Data Layers:** `250m_16_days_NDVI` (scaled 0.0001), `250m_16_days_EVI` (scaled 0.0001), `250m_16_days_pixel_reliability` (0=Good, 1=Marginal/Usable with caution, 2=Snow/Ice, 3=Cloudy), `250m_16_days_composite_day_of_the_year`.
+
+#### 3. BBS Official Bangladesh Administrative Boundaries (Admin-2)
+- **Dataset:** Bangladesh Bureau of Statistics (BBS) 2020 Admin-2 District Boundaries (`bgd_admbnda_adm2_bbs_20201113.geojson`).
+- **Coordinate Reference System:** WGS 84 (`EPSG:4326`).
+- **Benchmark Coverage:** Cumilla (`BD2019`, 17,992 vertices) and Chattogram (`BD2015`, 23,586 vertices).
+
+#### 4. Official Bangladesh Agro-Meteorological Crop Calendars
+- **Sources:** Bangladesh Agro-Meteorological Information Service (BAMIS), Department of Agricultural Extension (DAE), Bangladesh Rice Research Institute (BRRI), Bangladesh Agricultural Research Institute (BARI).
+- **Regional Coverage:** DAE Region 12 (Cumilla Region: Cumilla, Chandpur, Brahmanbaria) and DAE Region 13 (Chattogram Region: Chattogram, Cox's Bazar, Feni, Lakshmipur, Noakhali).
+- **Crops:** T. Aman Rice, Boro Rice, Aus Rice, Mustard (BARI Sharisha-14/17/18, Tori-7).
+- **Parameters:** Standard Meteorological Weeks (SMW), thermal stress thresholds, moisture requirements, and direct PDF citations.
+
 ---
 
 ## Data Coverage and Provenance
@@ -250,10 +274,20 @@ All backend endpoints are mounted under `/api/v1` and return standardized JSON e
 | `GET` | `/api/v1/health` | System health, database connectivity, and dataset status. | None |
 | `GET` | `/api/v1/districts` | List of supported agricultural districts and coordinates. | None |
 | `GET` | `/api/v1/climate/summary` | Multi-parameter 25-year climate summary. | `district` (required: `cumilla` \| `chattogram`) |
-| `GET` | `/api/v1/climate/rainfall` | Aggregated rainfall series and monthly historical normals. | `district`, `grouping` (`monthly` \| `annual`) |
+| `GET` | `/api/v1/climate/rainfall` | Aggregated rainfall series and monthly historical normals. | `district`, `grouping` (`daily` \| `monthly` \| `annual` \| `seasonal`) |
 | `GET` | `/api/v1/climate/temperature` | Temperature distributions, monthly means, and diurnal ranges. | `district`, `metric` (`t2m` \| `all`) |
 | `GET` | `/api/v1/climate/handoff` | Crop handoff analysis, sowing opportunities, and period comparisons. | `district`, `transition` (`aman-mustard` \| `boro-aus`) |
 | `GET` | `/api/v1/data-sources` | Provenance metadata catalog and point-in-time observation counts. | None |
+| `GET` | `/api/v1/soil-moisture/history` | Physical SMAP soil moisture time series and bitmask quality filters. | `district`, `quality` (`recommended` \| `all`) |
+| `GET` | `/api/v1/soil-moisture/latest` | Most recent physical SMAP soil moisture observation per district. | `district` |
+| `GET` | `/api/v1/vegetation/history` | Scaled MODIS NDVI/EVI vegetation time series and pixel reliability. | `district`, `quality` (`good_data` \| `all`) |
+| `GET` | `/api/v1/vegetation/latest` | Latest MODIS vegetation index composite. | `district` |
+| `GET` | `/api/v1/gis/districts` | GIS metadata, bounding boxes, and centroids for benchmark districts. | None |
+| `GET` | `/api/v1/gis/boundaries` | BBS 2020 Admin-2 GeoJSON boundary polygons (`EPSG:4326`). | `district` (`cumilla` \| `chattogram`) |
+| `GET` | `/api/v1/gis/layers` | Coordinated GeoJSON spatial observation layers with SMAP/MODIS footprints. | `district` (`cumilla` \| `chattogram`) |
+| `GET` | `/api/v1/crop-calendar/crops` | List of supported crops with DAE regional taxonomy. | None |
+| `GET` | `/api/v1/crop-calendar` | Verified BAMIS/DAE/BRRI crop phenology calendar by district. | `district`, `crop` |
+| `GET` | `/api/v1/crop-calendar/alignment` | Alignment of official crop calendar stages with live NASA satellite datasets. | `district`, `crop` |
 
 ### Authentication Endpoints
 
@@ -315,24 +349,37 @@ All backend endpoints are mounted under `/api/v1` and return standardized JSON e
 
 ## Testing and Reproducibility
 
-The repository includes a comprehensive, multi-layer automated test suite:
+The repository includes a comprehensive, multi-layer automated test suite spanning 125 total tests:
 
 ### 1. Node.js Unit & Contract Tests
-Runs validation logic, time standard guards, and Python CLI IPC contract tests without connecting to the database:
+Runs validation logic, time standard guards, schema constraints, and Python CLI IPC contract tests without connecting to the database:
 ```bash
 npm run test:unit
 ```
-*Current Verified Result:* **36/36 tests passing** (6.4s).
+*Current Verified Result:* **45/45 tests passing**.
 
-### 2. Python Scientific Engine Tests
+### 2. Node.js Integration Tests
+Tests live API endpoints, session authentication, BBS Admin-2 GeoJSON boundary rendering, and BAMIS crop calendar phenology queries against in-memory mock databases:
+```bash
+npm run test:integration
+```
+*Current Verified Result:* **24/24 tests passing**.
+
+### 3. Full Node.js Suite
+```bash
+npm test
+```
+*Current Verified Result:* **69/69 tests passing**.
+
+### 4. Python Scientific Engine Tests
 Executes the scientific test suite covering percentiles, incomplete-month thresholds, Student-t p-values, and consecutive dry streak calculations:
 ```bash
 # Run from server directory
 python -m unittest discover -s science/tests
 ```
-*Current Verified Result:* **56/56 tests passing** (4.4s).
+*Current Verified Result:* **56/56 tests passing** (NumPy 2.x, zero floating errors).
 
-### 3. Read-Only Database Audit Job
+### 5. Read-Only Database Audit Job
 Inspects the live database without making modifications:
 ```bash
 node src/jobs/audit-data-readonly.js

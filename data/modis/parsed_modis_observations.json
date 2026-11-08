@@ -1,0 +1,224 @@
+[
+  {
+    "districtCode": "chattogram",
+    "districtName": "Chattogram",
+    "adminPolygonPcode": "BD2015",
+    "date": "2023-12-19T00:00:00.000Z",
+    "dateLabel": "2023-12-19",
+    "compositeDayOfYear": 359,
+    "ndvi": 0.2853,
+    "evi": 0.1294,
+    "rawNdvi": 0.2853,
+    "rawEvi": 0.1294,
+    "pixelReliability": 0,
+    "qualityClassification": "good_data",
+    "isReliableQuality": true,
+    "sourceDataset": "nasa:modis:mod13q1:v061",
+    "sourceProduct": "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061",
+    "sourceGranuleId": "MOD13Q1.A2023353.h26v06.061.2024005171256",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [
+        91.8317,
+        22.3384
+      ]
+    },
+    "geodesicDistanceKm": 0,
+    "metadata": {
+      "modisTile": "h26v06",
+      "lineY250m": 3677,
+      "sampleX250m": 2371,
+      "viQualityBitmask": "0b0001000001000100",
+      "viQualityModlandDesc": "VI produced with good quality",
+      "viUsefulnessDesc": "Lower quality",
+      "aerosolQuantityDesc": "Low",
+      "landWaterMaskDesc": "Ocean coastlines and lake shorelines",
+      "pixelReliabilityDesc": "Good data, use with confidence"
+    }
+  },
+  {
+    "districtCode": "chattogram",
+    "districtName": "Chattogram",
+    "adminPolygonPcode": "BD2015",
+    "date": "2024-01-01T00:00:00.000Z",
+    "dateLabel": "2024-01-01",
+    "compositeDayOfYear": 1,
+    "ndvi": 0.3835,
+    "evi": 0.2294,
+    "rawNdvi": 0.3835,
+    "rawEvi": 0.2294,
+    "pixelReliability": 0,
+    "qualityClassification": "good_data",
+    "isReliableQuality": true,
+    "sourceDataset": "nasa:modis:mod13q1:v061",
+    "sourceProduct": "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061",
+    "sourceGranuleId": "MOD13Q1.A2024001.h26v06.061.2024022131619",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [
+        91.8317,
+        22.3384
+      ]
+    },
+    "geodesicDistanceKm": 0,
+    "metadata": {
+      "modisTile": "h26v06",
+      "lineY250m": 3677,
+      "sampleX250m": 2371,
+      "viQualityBitmask": "0b0001000001000100",
+      "viQualityModlandDesc": "VI produced with good quality",
+      "viUsefulnessDesc": "Lower quality",
+      "aerosolQuantityDesc": "Low",
+      "landWaterMaskDesc": "Ocean coastlines and lake shorelines",
+      "pixelReliabilityDesc": "Good data, use with confidence"
+    }
+  },
+  {
+    "districtCode": "chattogram",
+    "districtName": "Chattogram",
+    "adminPolygonPcode": "BD2015",
+    "date": "2024-01-17T00:00:00.000Z",
+    "dateLabel": "2024-01-17",
+    "compositeDayOfYear": 28,
+    "ndvi": 0.3323,
+    "evi": 0.1434,
+    "rawNdvi": 0.3323,
+    "rawEvi": 0.1434,
+    "pixelReliability": 0,
+    "qualityClassification": "good_data",
+    "isReliableQuality": true,
+    "sourceDataset": "nasa:modis:mod13q1:v061",
+    "sourceProduct": "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061",
+    "sourceGranuleId": "MOD13Q1.A2024001.h26v06.061.2024022131619",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [
+        91.8317,
+        22.3384
+      ]
+    },
+    "geodesicDistanceKm": 0,
+    "metadata": {
+      "modisTile": "h26v06",
+      "lineY250m": 3677,
+      "sampleX250m": 2371,
+      "viQualityBitmask": "0b0001000001000100",
+      "viQualityModlandDesc": "VI produced with good quality",
+      "viUsefulnessDesc": "Lower quality",
+      "aerosolQuantityDesc": "Low",
+      "landWaterMaskDesc": "Ocean coastlines and lake shorelines",
+      "pixelReliabilityDesc": "Good data, use with confidence"
+    }
+  },
+  {
+    "districtCode": "cumilla",
+    "districtName": "Cumilla",
+    "adminPolygonPcode": "BD2019",
+    "date": "2023-12-19T00:00:00.000Z",
+    "dateLabel": "2023-12-19",
+    "compositeDayOfYear": 364,
+    "ndvi": 0.3434,
+    "evi": 0.1527,
+    "rawNdvi": 0.3434,
+    "rawEvi": 0.1527,
+    "pixelReliability": 0,
+    "qualityClassification": "good_data",
+    "isReliableQuality": true,
+    "sourceDataset": "nasa:modis:mod13q1:v061",
+    "sourceProduct": "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061",
+    "sourceGranuleId": "MOD13Q1.A2023353.h26v06.061.2024005171256",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [
+        91.18503,
+        23.46186
+      ]
+    },
+    "geodesicDistanceKm": 0,
+    "metadata": {
+      "modisTile": "h26v06",
+      "lineY250m": 3138,
+      "sampleX250m": 1750,
+      "viQualityBitmask": "0b0000100001000100",
+      "viQualityModlandDesc": "VI produced with good quality",
+      "viUsefulnessDesc": "Lower quality",
+      "aerosolQuantityDesc": "Low",
+      "landWaterMaskDesc": "Land (Nothing else but land)",
+      "pixelReliabilityDesc": "Good data, use with confidence"
+    }
+  },
+  {
+    "districtCode": "cumilla",
+    "districtName": "Cumilla",
+    "adminPolygonPcode": "BD2019",
+    "date": "2024-01-01T00:00:00.000Z",
+    "dateLabel": "2024-01-01",
+    "compositeDayOfYear": 7,
+    "ndvi": 0.3068,
+    "evi": 0.139,
+    "rawNdvi": 0.3068,
+    "rawEvi": 0.139,
+    "pixelReliability": 1,
+    "qualityClassification": "marginal_data",
+    "isReliableQuality": false,
+    "sourceDataset": "nasa:modis:mod13q1:v061",
+    "sourceProduct": "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061",
+    "sourceGranuleId": "MOD13Q1.A2024001.h26v06.061.2024022131619",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [
+        91.18503,
+        23.46186
+      ]
+    },
+    "geodesicDistanceKm": 0,
+    "metadata": {
+      "modisTile": "h26v06",
+      "lineY250m": 3138,
+      "sampleX250m": 1750,
+      "viQualityBitmask": "0b0000100011010101",
+      "viQualityModlandDesc": "VI produced, but check other QA",
+      "viUsefulnessDesc": "Decreasing quality",
+      "aerosolQuantityDesc": "High",
+      "landWaterMaskDesc": "Land (Nothing else but land)",
+      "pixelReliabilityDesc": "Marginal data, Useful, but look at other QA information"
+    }
+  },
+  {
+    "districtCode": "cumilla",
+    "districtName": "Cumilla",
+    "adminPolygonPcode": "BD2019",
+    "date": "2024-01-17T00:00:00.000Z",
+    "dateLabel": "2024-01-17",
+    "compositeDayOfYear": 28,
+    "ndvi": 0.2865,
+    "evi": 0.1323,
+    "rawNdvi": 0.2865,
+    "rawEvi": 0.1323,
+    "pixelReliability": 1,
+    "qualityClassification": "marginal_data",
+    "isReliableQuality": false,
+    "sourceDataset": "nasa:modis:mod13q1:v061",
+    "sourceProduct": "MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061",
+    "sourceGranuleId": "MOD13Q1.A2024001.h26v06.061.2024022131619",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [
+        91.18503,
+        23.46186
+      ]
+    },
+    "geodesicDistanceKm": 0,
+    "metadata": {
+      "modisTile": "h26v06",
+      "lineY250m": 3138,
+      "sampleX250m": 1750,
+      "viQualityBitmask": "0b0000100011010001",
+      "viQualityModlandDesc": "VI produced, but check other QA",
+      "viUsefulnessDesc": "Decreasing quality",
+      "aerosolQuantityDesc": "High",
+      "landWaterMaskDesc": "Land (Nothing else but land)",
+      "pixelReliabilityDesc": "Marginal data, Useful, but look at other QA information"
+    }
+  }
+]
