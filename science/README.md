@@ -67,6 +67,31 @@ Seasonal totals are calculated by summing rainfall across the constituent calend
 * **Relative Humidity (`RH2M`, `%`):** Monthly and annual means, $P_{25}, P_{50}, P_{75}, P_{90}$.
 * **Solar Radiation (`ALLSKY_SFC_SW_DWN`, `MJ/m²/day`):** Monthly daily mean insolation, annual insolation, $P_{25}, P_{50}, P_{75}, P_{90}$.
 
+### 2.6 Period Comparison Tests (exploratory, non-attributional)
+Comparisons such as Period 1 (2001–2012) vs Period 2 (2013–2025) use two-sided tests and are labeled exploratory throughout. They establish neither climate-change attribution nor agronomic significance.
+
+* **Welch's t-test.**
+  $$t = \frac{\bar{x}_2 - \bar{x}_1}{\sqrt{v_1/n_1 + v_2/n_2}}, \quad
+  \nu = \frac{(v_1/n_1 + v_2/n_2)^2}{\frac{(v_1/n_1)^2}{n_1-1} + \frac{(v_2/n_2)^2}{n_2-1}}$$
+  The two-sided p-value uses the Student's t distribution with $\nu$ (Welch–Satterthwaite) degrees of freedom:
+  $$p = I_x\!\left(\tfrac{\nu}{2}, \tfrac{1}{2}\right), \quad x = \frac{\nu}{\nu + t^2}$$
+  where $I_x$ is the regularized incomplete beta function, evaluated by the hypergeometric power series
+  $I_x(a,b) = \frac{x^a(1-x)^b}{aB(a,b)} \sum_{n=0}^{\infty} \frac{(a+b)_n}{(a+1)_n} x^n$ with one reflection at $x > (a+1)/(a+b+2)$ (full double precision on the relevant domain; regression-tested against published critical-value tables). For $\nu \ge 10{,}000$ the documented normal-limit branch is used ($t \to N(0,1)$ as $\nu \to \infty$; the correction is below double-precision noise). The response distinguishes the two regimes via `p_value_kind`: exact finite-df evaluations are labeled `"exact_distribution"`, the normal-limit branch is labeled `"normal_limit"` and is never presented as an exact finite-df Student-t calculation. `method` stays `"student_t_welch_satterthwaite_two_sided"`. The former normal (`erf`) approximation for typical sample sizes is no longer used.
+
+* **Mann–Whitney U.** Asymptotic normal approximation with:
+  - average ranks for ties,
+  - **tie-corrected variance** $\sigma_U^2 = \frac{n_1 n_2 (N+1)}{12} - \frac{\sum_k (t_k^3 - t_k)}{12N(N-1)}$ over tie groups ($N = n_1+n_2$),
+  - **continuity correction** of 0.5 as in scipy's default asymptotic method,
+  - a validity guard: `is_significant` requires both groups $\ge 8$ years; smaller samples report `approximation_valid: false` and a conservative `is_significant: false`.
+
+  Every result carries `approximation_note`, which states that the n ≥ 8 guard is a rule-of-thumb screening criterion only — it does not guarantee accuracy, especially with heavy ties or skewed distributions. `p_value_kind` stays `"approximate"`: an asymptotic probability, never an exact permutation probability.
+
+  The p-value is always labeled `p_value_kind: "approximate"`; it is an asymptotic probability, never an exact permutation probability.
+
+### 2.7 Incomplete Rainfall Totals Disclosure
+Legacy gated flat fields (`oct_total_rain ≥ 28` valid days, `oct_late_rain ≥ 14`, `nov_total_rain ≥ 27`) keep their exact previous contract and values. Each yearly record additionally carries `rainfall_period_totals` with, per window (October, late October Oct 16–31, November, sowing window):
+`expected_days`, `valid_days`, `missing_days`, `period_coverage_percent`, `total_kind` (`complete_period_total` | `observed_partial_sum` | `no_observations`), and the ungated `raw_observed_sum_mm` preserving the observed-day sum. Missing days are never imputed and raw partial sums are never relabeled as complete periods.
+
 ---
 
 ## 3. JSON Contract Specification

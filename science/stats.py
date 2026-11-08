@@ -20,6 +20,21 @@ import numpy as np
 
 FORMULA_VERSION = "v1.0.0-phase3"
 
+# Student-t implementation switches to the exact normal limit at this df
+# (t -> N(0,1) as df -> infinity; correction below 1e-4 at df = 1e4).
+STUDENT_T_NORMAL_DF_LIMIT = 10000.0
+
+# Disclosure attached to every Mann-Whitney U result. States the approximation
+# honestly without overstating the n >= 8 rule-of-thumb guard.
+MWU_APPROXIMATION_NOTE = (
+    "p_value is an asymptotic normal approximation of the exact permutation "
+    "probability (average-rank ties, tie-corrected variance, 0.5 continuity "
+    "correction). approximation_valid requires at least 8 observations per "
+    "group, which is a rule-of-thumb screening criterion only; it does not "
+    "guarantee accuracy, especially when ties are heavy or distributions are "
+    "skewed. Treat all reported p-values as approximate."
+)
+
 SEASONS_DEFINITION = {
     "winter": {"months": [12, 1, 2], "name_en": "Winter", "name_bn": "শীতকাল"},
     "pre_monsoon": {"months": [3, 4, 5], "name_en": "Pre-Monsoon", "name_bn": "প্রাক-বর্ষা"},
@@ -38,6 +53,145 @@ def get_expected_month_days(year: int, month: int) -> int:
     if month == 2 and is_leap_year(year):
         return 29
     return DAYS_PER_MONTH_NORMAL.get(month, 30)
+
+
+def expected_year_days(year: int) -> int:
+    return 366 if is_leap_year(year) else 365
+
+
+def _period_total_fields(valid_count: int, expected: int, total: Optional[float]) -> Dict[str, Any]:
+    """Label an observed sum without changing its value or imputing missing days."""
+    if total is None or valid_count == 0:
+        kind = "no_observations"
+    elif expected > 0 and valid_count == expected:
+        kind = "complete_period_total"
+    else:
+        kind = "observed_partial_sum"
+    return {
+        "missing_days": max(expected - valid_count, 0),
+        "period_coverage_percent": round((valid_count / expected) * 100, 2) if expected else 0.0,
+        "total_kind": kind,
+    }
+
+
+def _period_mean_fields(valid_count: int, expected: int) -> Dict[str, Any]:
+    if valid_count == 0:
+        kind = "no_observations"
+    elif expected > 0 and valid_count == expected:
+        kind = "complete_period_mean"
+    else:
+        kind = "observed_partial_mean"
+    return {
+        "missing_days": max(expected - valid_count, 0),
+        "period_coverage_percent": round((valid_count / expected) * 100, 2) if expected else 0.0,
+        "mean_kind": kind,
+    }
+
+
+def _coverage_block(
+    stored_valid: int,
+    stored_missing: int,
+    calendar_valid: int,
+    calendar_expected: int,
+    parameter: str,
+) -> Dict[str, Any]:
+    stored_total = stored_valid + stored_missing
+    stored_percent = round((stored_valid / stored_total) * 100, 2) if stored_total else 0.0
+    calendar_percent = round((calendar_valid / calendar_expected) * 100, 2) if calendar_expected else 0.0
+    return {
+        "coverage_percent": stored_percent,
+        "coverage_basis": "stored_observation_rows",
+        "coverage_parameter": parameter,
+        "calendar_coverage": {
+            "coverage_percent": calendar_percent,
+            "valid_days": calendar_valid,
+            "expected_days": calendar_expected,
+            "missing_days": max(calendar_expected - calendar_valid, 0),
+            "basis": "calendar_days_in_years_present_in_payload",
+            "parameter": parameter,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Student's t distribution — two-sided tail probability
+#
+# Implemented from first principles (NumPy/stdlib only, no scipy):
+#   P(|T_nu| > |t|) = I_x(nu/2, 1/2),  x = nu / (nu + t^2)
+# where I_x(a, b) is the regularized incomplete beta function.
+#
+# I_x is evaluated by the hypergeometric power series
+#   I_x(a,b) = x^a (1-x)^b / (a·B(a,b)) · Σ_{n>=0} (a+b)_n/(a+1)_n x^n
+# with a single reflection (1-x, b↔a) whenever x sits above the standard
+# switching threshold (a+1)/(a+b+2). The series converges geometrically at
+# rate x (< 1) and retains full double precision across the whole domain,
+# unlike the continued-fraction form which degrades near x = 0.5.
+# Reference-point regression checks against published Student's-t critical
+# tables live in science/tests/test_statistical_references.py.
+# ---------------------------------------------------------------------------
+
+def _log_gamma(x: float) -> float:
+    return math.lgamma(x)
+
+
+def _log_beta(a: float, b: float) -> float:
+    """log B(a,b) = log Γ(a) + log Γ(b) − log Γ(a+b)."""
+    return _log_gamma(a) + _log_gamma(b) - _log_gamma(a + b)
+
+
+def _betainc(a: float, b: float, x: float) -> float:
+    """Regularized incomplete beta function I_x(a, b) via power series."""
+    if x < 0.0:
+        return 0.0
+    if x > 1.0:
+        return 1.0
+    if x == 0.0:
+        return 0.0
+    if x == 1.0:
+        return 1.0
+    reflect = x > (a + 1.0) / (a + b + 2.0)
+    if reflect:
+        a, b = b, a
+        x = 1.0 - x
+    # Series terms: term_{n}/term_{n-1} = x·(a+b+n-1)/(a+n), n = 1, 2, ...
+    # Convergence is geometric at rate x, so terms needed ~ ln(eps)/ln(x).
+    # Worst in-scope case (df just under STUDENT_T_NORMAL_DF_LIMIT, x -> 1)
+    # needs ~1e5 terms; the generous cap keeps that regime exact. Typical
+    # climate samples (df <= 50, x <= 0.93) converge in a few hundred terms.
+    log_base = (
+        a * math.log(x) + b * math.log(1.0 - x)
+        - math.log(a) - _log_beta(a, b)
+    )
+    base = math.exp(log_base)
+    series_sum = 1.0
+    term = 1.0
+    for n in range(1, 1000000):
+        term = term * x * (a + b + n - 1.0) / (a + n)
+        series_sum += term
+        if abs(term) < 1.0e-16 * abs(series_sum):
+            break
+    result = base * series_sum
+    return 1.0 - result if reflect else result
+
+
+def student_t_two_sided_p(t_value: float, degrees_freedom: float) -> Optional[float]:
+    """Two-sided Student's t tail probability P(|T_nu| > |t|)."""
+    if degrees_freedom is None or degrees_freedom <= 0:
+        return None
+    if not math.isfinite(t_value):
+        return None
+    t_abs = abs(t_value)
+    if t_abs == 0.0:
+        return 1.0
+    # Normal-limit regime: the Student-t converges to the standard normal as
+    # df -> infinity. Beyond this df the t-vs-normal correction is below
+    # double-precision noise and the beta-series term count would explode
+    # numerically. Documented, deterministic, and irrelevant for climate
+    # sample sizes (df here is always <= ~50 for our yearly series).
+    if degrees_freedom >= STUDENT_T_NORMAL_DF_LIMIT:
+        return math.erfc(t_abs / math.sqrt(2.0))
+    x = degrees_freedom / (degrees_freedom + t_abs * t_abs)
+    return _betainc(degrees_freedom / 2.0, 0.5, x)
 
 
 def finite_observation_value(obs: Dict[str, Any]) -> Optional[float]:
@@ -119,6 +273,8 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
     total_valid = 0
     total_missing = 0
     all_values: List[float] = []
+    valid_dates = set()
+    years_present = set()
 
     for obs in observations:
         date_str = obs.get("dateLabel") or obs.get("date", "")[:10]
@@ -127,13 +283,23 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
 
         year = int(date_str[:4])
         month = int(date_str[5:7])
+        years_present.add(year)
 
         if year not in by_year_month:
             by_year_month[year] = {m: [] for m in range(1, 13)}
 
-        if quality == "ok" and val is not None and val >= 0:
-            by_year_month[year][month].append(float(val))
-            all_values.append(float(val))
+        finite = None
+        if quality == "ok" and val is not None and not isinstance(val, bool):
+            try:
+                number = float(val)
+            except (TypeError, ValueError):
+                number = None
+            if number is not None and math.isfinite(number) and number >= 0:
+                finite = number
+        if finite is not None:
+            by_year_month[year][month].append(finite)
+            all_values.append(finite)
+            valid_dates.add(date_str)
             total_valid += 1
         else:
             total_missing += 1
@@ -168,6 +334,7 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
                 "valid_days": valid_count,
                 "expected_days": expected,
                 "is_complete": is_complete,
+                **_period_total_fields(valid_count, expected, month_total),
             })
 
             if is_complete and month_total is not None:
@@ -178,12 +345,14 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
             year_valid_days += valid_count
 
         year_complete = (year_valid_days / year_expected_days) >= completeness_threshold
+        annual_total = np.round(year_total, 2) if year_valid_days > 0 else None
         annual_series.append({
             "year": year,
-            "total_mm": np.round(year_total, 2) if year_valid_days > 0 else None,
+            "total_mm": annual_total,
             "valid_days": year_valid_days,
             "expected_days": year_expected_days,
             "is_complete": year_complete,
+            **_period_total_fields(year_valid_days, year_expected_days, annual_total),
         })
 
     # Historical monthly summary (normals & percentiles across valid years)
@@ -221,15 +390,17 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
                 )
 
                 is_complete = (s_valid_days / s_expected_days) >= completeness_threshold
+                winter_total = np.round(s_total, 2) if s_total is not None else None
                 seasonal_series.append({
                     "year": year,
                     "season": "winter",
                     "season_label": f"Winter {year-1}–{year}",
                     "span_description": f"Dec {year-1} + Jan {year} + Feb {year}",
-                    "total_mm": np.round(s_total, 2) if s_total is not None else None,
+                    "total_mm": winter_total,
                     "valid_days": s_valid_days,
                     "expected_days": s_expected_days,
                     "is_complete": is_complete,
+                    **_period_total_fields(s_valid_days, s_expected_days, winter_total),
                 })
                 if is_complete and s_total is not None:
                     season_history["winter"].append(s_total)
@@ -247,15 +418,17 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
                 is_complete = (s_valid_days / s_expected_days) >= completeness_threshold
                 if s_valid_days == 0:
                     s_total = None
+                season_total = np.round(s_total, 2) if s_total is not None else None
                 seasonal_series.append({
                     "year": year,
                     "season": s_key,
                     "season_label": f"{s_meta['name_en']} {year}",
                     "span_description": f"Months {s_meta['months']} of {year}",
-                    "total_mm": np.round(s_total, 2) if s_total is not None else None,
+                    "total_mm": season_total,
                     "valid_days": s_valid_days,
                     "expected_days": s_expected_days,
                     "is_complete": is_complete,
+                    **_period_total_fields(s_valid_days, s_expected_days, season_total),
                 })
                 if is_complete and s_total is not None:
                     season_history[s_key].append(s_total)
@@ -280,7 +453,13 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
     annual_dist = compute_distribution(valid_annual)
 
     total_count = total_valid + total_missing
-    coverage_pct = round((total_valid / total_count * 100), 2) if total_count > 0 else 0.0
+    coverage = _coverage_block(
+        total_valid,
+        total_missing,
+        len(valid_dates),
+        sum(expected_year_days(year) for year in years_present),
+        "PRECTOTCORR",
+    )
 
     return {
         "parameter": "PRECTOTCORR",
@@ -290,7 +469,18 @@ def summarize_rainfall(observations: List[Dict[str, Any]], completeness_threshol
         "total_observations": total_count,
         "valid_observations": total_valid,
         "missing_observations": total_missing,
-        "coverage_percent": coverage_pct,
+        "coverage_percent": coverage["coverage_percent"],
+        "coverage_basis": coverage["coverage_basis"],
+        "coverage_parameter": coverage["coverage_parameter"],
+        "calendar_coverage": coverage["calendar_coverage"],
+        "total_policy": (
+            "total_mm is the sum of valid observed days. Missing days are not imputed. "
+            "total_kind is complete_period_total only when every expected calendar day is valid. "
+            "is_complete remains the 90 percent eligibility flag for historical distributions and "
+            "can still include a period that is missing days. coverage_percent is the stored-row "
+            "rate for this rainfall series only; calendar_coverage uses the calendar days in years "
+            "present in the payload."
+        ),
         "annual_historical": annual_dist,
         "monthly_historical": monthly_historical,
         "seasonal_historical": seasonal_historical,
@@ -313,26 +503,43 @@ def summarize_temperature(
     - Diurnal temperature range (DTR = T2M_MAX - T2M_MIN)
     - Historical monthly normals & percentiles (P25, P50, P75, P90)
     """
-    by_date_t2m: Dict[str, float] = {}
-    by_date_max: Dict[str, float] = {}
-    by_date_min: Dict[str, float] = {}
+    def accept_temperature(obs: Dict[str, Any]) -> Optional[float]:
+        if obs.get("quality") != "ok":
+            return None
+        raw = obs.get("value")
+        if raw is None or isinstance(raw, bool):
+            return None
+        try:
+            number = float(raw)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(number) or number == -999.0:
+            return None
+        return number
 
-    for o in t2m_obs:
-        d = o.get("dateLabel") or o.get("date", "")[:10]
-        if o.get("quality") == "ok" and o.get("value") is not None:
-            by_date_t2m[d] = float(o["value"])
+    def index_temperature(rows: Optional[List[Dict[str, Any]]]) -> tuple:
+        by_date: Dict[str, float] = {}
+        stored_valid = 0
+        stored_missing = 0
+        years = set()
+        for obs in rows or []:
+            label = obs.get("dateLabel") or obs.get("date", "")[:10]
+            if len(label) >= 4:
+                try:
+                    years.add(int(label[:4]))
+                except ValueError:
+                    pass
+            value = accept_temperature(obs)
+            if value is None:
+                stored_missing += 1
+            else:
+                by_date[label] = value
+                stored_valid += 1
+        return by_date, stored_valid, stored_missing, years
 
-    if t2m_max_obs:
-        for o in t2m_max_obs:
-            d = o.get("dateLabel") or o.get("date", "")[:10]
-            if o.get("quality") == "ok" and o.get("value") is not None:
-                by_date_max[d] = float(o["value"])
-
-    if t2m_min_obs:
-        for o in t2m_min_obs:
-            d = o.get("dateLabel") or o.get("date", "")[:10]
-            if o.get("quality") == "ok" and o.get("value") is not None:
-                by_date_min[d] = float(o["value"])
+    by_date_t2m, t2m_valid_rows, t2m_missing_rows, t2m_years = index_temperature(t2m_obs)
+    by_date_max, tmax_valid_rows, tmax_missing_rows, tmax_years = index_temperature(t2m_max_obs)
+    by_date_min, tmin_valid_rows, tmin_missing_rows, tmin_years = index_temperature(t2m_min_obs)
 
     # Group by year and month
     by_year_month: Dict[int, Dict[int, List[str]]] = {}
@@ -385,6 +592,7 @@ def summarize_temperature(
                 "valid_days": valid_days,
                 "expected_days": expected,
                 "is_complete": is_complete,
+                **_period_mean_fields(valid_days, expected),
             }
             monthly_series.append(record)
             if is_complete and mean_t is not None:
@@ -418,9 +626,27 @@ def summarize_temperature(
             "absolute_min": min(absolute_min_by_month[month], default=None),
         }
 
-    all_temp_obs = list(t2m_obs) + list(t2m_max_obs or []) + list(t2m_min_obs or [])
+    def parameter_coverage(valid_rows, missing_rows, by_date, years, parameter):
+        return _coverage_block(
+            valid_rows,
+            missing_rows,
+            len(by_date),
+            sum(expected_year_days(year) for year in years),
+            parameter,
+        )
+
+    def stored_counts(valid_rows, missing_rows, by_date):
+        total_rows = valid_rows + missing_rows
+        distinct_valid = len(by_date)
+        return distinct_valid, max(total_rows - distinct_valid, 0)
+
+    coverage_by_parameter = {
+        "T2M": parameter_coverage(*stored_counts(t2m_valid_rows, t2m_missing_rows, by_date_t2m), by_date_t2m, t2m_years, "T2M"),
+        "T2M_MAX": parameter_coverage(*stored_counts(tmax_valid_rows, tmax_missing_rows, by_date_max), by_date_max, tmax_years, "T2M_MAX"),
+        "T2M_MIN": parameter_coverage(*stored_counts(tmin_valid_rows, tmin_missing_rows, by_date_min), by_date_min, tmin_years, "T2M_MIN"),
+    }
     total_valid = len(by_date_t2m) + len(by_date_max) + len(by_date_min)
-    total_obs = len(all_temp_obs)
+    total_obs = (t2m_valid_rows + t2m_missing_rows) + (tmax_valid_rows + tmax_missing_rows) + (tmin_valid_rows + tmin_missing_rows)
     coverage_pct = round((total_valid / total_obs * 100), 2) if total_obs > 0 else 0.0
     annual_means = []
     for year in years_sorted:
@@ -438,6 +664,12 @@ def summarize_temperature(
         "valid_observations": total_valid,
         "missing_observations": total_obs - total_valid,
         "coverage_percent": coverage_pct,
+        "coverage_basis": "stored_observation_rows_combined_temperature_parameters",
+        "coverage_by_parameter": coverage_by_parameter,
+        "coverage_note": (
+            "coverage_percent combines stored rows for T2M, T2M_MAX, and T2M_MIN when those series "
+            "are supplied. It is not a rainfall coverage figure. Use coverage_by_parameter for one variable."
+        ),
         "annual_historical": compute_distribution(np.array(annual_means, dtype=float)),
         "monthly_historical": monthly_historical,
         "monthly_series": monthly_series,
@@ -457,6 +689,8 @@ def summarize_parameter(
     by_year_month: Dict[int, Dict[int, List[float]]] = {}
     total_valid = 0
     total_missing = 0
+    valid_dates = set()
+    years_present = set()
 
     for obs in observations:
         d = obs.get("dateLabel") or obs.get("date", "")[:10]
@@ -465,12 +699,22 @@ def summarize_parameter(
 
         year = int(d[:4])
         month = int(d[5:7])
+        years_present.add(year)
 
         if year not in by_year_month:
             by_year_month[year] = {m: [] for m in range(1, 13)}
 
-        if quality == "ok" and val is not None:
-            by_year_month[year][month].append(float(val))
+        number = None
+        if quality == "ok" and val is not None and not isinstance(val, bool):
+            try:
+                parsed = float(val)
+            except (TypeError, ValueError):
+                parsed = None
+            if parsed is not None and math.isfinite(parsed) and parsed != -999.0:
+                number = parsed
+        if number is not None:
+            by_year_month[year][month].append(number)
+            valid_dates.add(d)
             total_valid += 1
         else:
             total_missing += 1
@@ -494,6 +738,7 @@ def summarize_parameter(
                 "valid_days": valid_days,
                 "expected_days": expected,
                 "is_complete": is_complete,
+                **_period_mean_fields(valid_days, expected),
             })
             if is_complete and mean_val is not None:
                 month_means_history[month].append(mean_val)
@@ -515,7 +760,13 @@ def summarize_parameter(
             annual_means.append(float(np.mean(annual_values)))
 
     total_count = total_valid + total_missing
-    coverage_pct = round((total_valid / total_count * 100), 2) if total_count > 0 else 0.0
+    coverage = _coverage_block(
+        total_valid,
+        total_missing,
+        len(valid_dates),
+        sum(expected_year_days(year) for year in years_present),
+        parameter_name,
+    )
 
     return {
         "parameter": parameter_name,
@@ -525,7 +776,10 @@ def summarize_parameter(
         "total_observations": total_count,
         "valid_observations": total_valid,
         "missing_observations": total_missing,
-        "coverage_percent": coverage_pct,
+        "coverage_percent": coverage["coverage_percent"],
+        "coverage_basis": coverage["coverage_basis"],
+        "coverage_parameter": coverage["coverage_parameter"],
+        "calendar_coverage": coverage["calendar_coverage"],
         "annual_historical": compute_distribution(np.array(annual_means, dtype=float)),
         "monthly_historical": monthly_historical,
         "monthly_series": monthly_series,
@@ -553,8 +807,19 @@ def rank_data(arr: np.ndarray) -> np.ndarray:
 
 def compute_mann_whitney_u(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     """
-    Computes Mann-Whitney U rank-sum test between two independent climate period samples.
-    Returns U statistic, standardized z-score, and two-sided asymptotic p-value.
+    Mann-Whitney U rank-sum test between two independent climate period samples.
+
+    Method (asymptotic normal approximation, scipy-style):
+    - Average ranks for ties.
+    - Tie-corrected variance: subtract the sum (t^3 - t) tie-group terms from the
+      no-ties variance, per standard MWU methodology.
+    - Continuity correction (0.5) applied to |u1 - mu_u|, as computed by scipy's
+      default (use_continuity=True, method='asymptotic').
+
+    The p-value is an ASYMPTOTIC approximation, not an exact permutation
+    probability, and is labeled accordingly (p_value_kind: "approximate").
+    MWU_APPROXIMATION_NOTE is returned with every result so consumers cannot
+    overstate the n >= 8 rule-of-thumb guard.
     """
     x_valid = x[~np.isnan(x)]
     y_valid = y[~np.isnan(y)]
@@ -571,6 +836,10 @@ def compute_mann_whitney_u(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
             "n1": n1,
             "n2": n2,
             "is_significant": False,
+            "method": "asymptotic_normal_with_tie_correction_and_continuity",
+            "approximation_valid": False,
+            "p_value_kind": "approximate",
+            "approximation_note": MWU_APPROXIMATION_NOTE,
         }
 
     combined = np.concatenate([x_valid, y_valid])
@@ -583,10 +852,40 @@ def compute_mann_whitney_u(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     u = min(u1, u2)
 
     mu_u = (n1 * n2) / 2.0
-    sigma_u = math.sqrt((n1 * n2 * (n1 + n2 + 1)) / 12.0) if (n1 + n2 + 1) > 0 else 1.0
 
-    z = (u1 - mu_u) / sigma_u if sigma_u > 0 else 0.0
-    p_value = 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs(z) / math.sqrt(2.0))))
+    # Tie-corrected variance: sigma^2 = n1*n2*(N+1)/12 - sum(t^3 - t) over tie
+    # groups divided by (12 * N * (N-1)), N = n1 + n2.
+    n_total = n1 + n2
+    sigma2 = (n1 * n2 * (n_total + 1)) / 12.0
+    tie_groups = {}
+    for value in combined:
+        tie_groups[value] = tie_groups.get(value, 0) + 1
+    tie_count_sum = 0
+    for group_count in tie_groups.values():
+        if group_count > 1:
+            gc = float(group_count)
+            tie_count_sum += gc * gc * gc - gc
+    sigma2 -= tie_count_sum / (12.0 * n_total * (n_total - 1)) if n_total > 1 else 0.0
+    ties_present = any(c > 1 for c in tie_groups.values())
+    sigma_u = math.sqrt(sigma2) if sigma2 > 0 else 0.0
+
+    # Normal approximation quality guard (rule-of-thumb validity conditions).
+    approximation_valid = bool(
+        n1 >= 8 and n2 >= 8 and not (ties_present and n_total < 16) and sigma_u > 0
+    )
+
+    if sigma_u > 0:
+        # Continuity correction toward the null (0.5) as scipy default asymptotic.
+        z_uncorrected = (u1 - mu_u) / sigma_u
+        z = (abs(u1 - mu_u) - 0.5) / sigma_u
+        if z < 0:
+            z = 0.0  # continuity correction should not overshoot the tail
+        z = math.copysign(z, z_uncorrected) if z_uncorrected != 0 else 0.0
+        p_value = 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs(z) / math.sqrt(2.0))))
+    else:
+        # Every observation tied across both samples: U equals its mean, no shift.
+        z = 0.0
+        p_value = 1.0
 
     return {
         "u1": round(u1, 2),
@@ -596,13 +895,21 @@ def compute_mann_whitney_u(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
         "p_value": round(p_value, 4),
         "n1": n1,
         "n2": n2,
-        "is_significant": bool(p_value < 0.05),
+        "is_significant": bool(approximation_valid and p_value < 0.05),
+        "method": "asymptotic_normal_with_tie_correction_and_continuity",
+        "approximation_valid": approximation_valid,
+        "p_value_kind": "approximate",
+        "approximation_note": MWU_APPROXIMATION_NOTE,
     }
 
 
 def compute_welch_t(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     """
-    Computes Welch's t-test for unequal variances between two independent climate period samples.
+    Welch's t-test for unequal variances between two independent climate period samples.
+
+    Two-sided p-value uses the Student's t distribution with Welch-Satterthwaite
+    degrees of freedom (regularized incomplete beta implementation in this module).
+    No normal approximation is used for the t-test p-value.
     """
     x_valid = x[~np.isnan(x)]
     y_valid = y[~np.isnan(y)]
@@ -617,6 +924,9 @@ def compute_welch_t(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
             "mean2": None,
             "mean_diff": None,
             "p_approx": None,
+            "p_value": None,
+            "method": "student_t_welch_satterthwaite_two_sided",
+            "p_value_kind": None,
             "n1": n1,
             "n2": n2,
         }
@@ -634,7 +944,14 @@ def compute_welch_t(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     denom = ((v1 / n1) ** 2) / (n1 - 1) + ((v2 / n2) ** 2) / (n2 - 1)
     df = num / denom if denom > 0 else 1.0
 
-    p_approx = 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs(t_stat) / math.sqrt(2.0))))
+    p_value = student_t_two_sided_p(t_stat, df)
+    # Kind disclosure: the incomplete-beta evaluation below the documented
+    # normal-limit df is the exact finite-df Student-t distribution; at or
+    # above STUDENT_T_NORMAL_DF_LIMIT the t distribution's normal limit is
+    # used and is labeled as such (not claimed as exact finite-df).
+    p_value_kind = (
+        "normal_limit" if df >= STUDENT_T_NORMAL_DF_LIMIT else "exact_distribution"
+    )
 
     return {
         "t": round(t_stat, 3),
@@ -642,7 +959,12 @@ def compute_welch_t(x: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
         "mean1": round(m1, 2),
         "mean2": round(m2, 2),
         "mean_diff": round(m2 - m1, 2),
-        "p_approx": round(p_approx, 4),
+        # Student's t two-sided p-value (replaces the old normal approximation).
+        "p_value": round(p_value, 6) if p_value is not None else None,
+        # Legacy key retained for existing consumers; identical Student-t value.
+        "p_approx": round(p_value, 4) if p_value is not None else None,
+        "method": "student_t_welch_satterthwaite_two_sided",
+        "p_value_kind": p_value_kind,
         "n1": n1,
         "n2": n2,
     }
@@ -661,8 +983,8 @@ CROP_TRANSITIONS: Dict[str, Dict[str, Any]] = {
         "sowing_window_label": "Nov 1 – Nov 20",
         "harvest_window_label": "Late Oct – Mid Nov",
         "min_consecutive_dry_days": 5,
-        "description_en": "Transition between monsoon Aman harvest and winter Rabi Mustard sowing. Excessive residual moisture delays tillage, while sowing past late November causes severe flowering heat stress.",
-        "description_bn": "আমন ধান কাটার পর রবি মৌসুমের সরিষা চাষের গুরুত্বপূর্ণ ট্রানজিশন উইন্ডো। দেরিতে বৃষ্টি হলে জমি তৈরিতে বিলম্ব ঘটে, এবং ২০ নভেম্বরের পর সরিষা বুনলে ফলন কমে যায়।",
+        "description_en": "Transition between monsoon Aman harvest and winter Rabi Mustard sowing. Excessive residual moisture can delay tillage. The project sowing window of Nov 1–20 is a planning reference whose source is pending verification; delayed mustard sowing is assumed to carry flowering-period heat-stress risk, which is a project assumption needing agronomic source verification.",
+        "description_bn": "আমন ধান কাটার পর রবি মৌসুমের সরিষা চাষের গুরুত্বপূর্ণ ট্রানজিশন উইন্ডো। দেরিতে বৃষ্টি হলে জমি তৈরিতে বিলম্ব ঘটে। ১–২০ নভেম্বর বপন উইন্ডোটি প্রকল্পের পরিকল্পনা-সূচক, যার উৎস এখনো যাচাই বাকি; দেরিতে সরিষা বুনলে ফুল ফোটার সময় তাপ-পীড়ন ঝুঁকি বলে প্রকল্পের অনুমান — কৃষিতাত্ত্বিক উৎস যাচাই প্রয়োজন।",
     },
     "boro-aus": {
         "id": "boro-aus",
@@ -894,19 +1216,62 @@ def summarize_handoff(
         # October metrics (harvest and late rainfall before mustard sowing)
         oct_dates = [f"{year:04d}-10-{d:02d}" for d in range(1, 32)]
         oct_rain_vals = [rain_by_date[d] for d in oct_dates if d in rain_by_date]
+        oct_expected = get_expected_month_days(year, 10)
+        oct_observed_partial_sum = float(np.sum(oct_rain_vals)) if oct_rain_vals else None
         oct_total_rain = float(np.sum(oct_rain_vals)) if len(oct_rain_vals) >= 28 else None
         oct_rain_days = sum(1 for r in oct_rain_vals if r >= 1.0) if len(oct_rain_vals) >= 28 else None
 
         # Late October rainfall (Oct 16-31, 16 days) - critical for field drainage
         oct_late_dates = [f"{year:04d}-10-{d:02d}" for d in range(16, 32)]
         oct_late_rain_vals = [rain_by_date[d] for d in oct_late_dates if d in rain_by_date]
+        oct_late_expected = len(oct_late_dates)
+        oct_late_observed_partial_sum = float(np.sum(oct_late_rain_vals)) if oct_late_rain_vals else None
         oct_late_rain = float(np.sum(oct_late_rain_vals)) if len(oct_late_rain_vals) >= 14 else None
 
         # Full November rainfall
         nov_dates = [f"{year:04d}-11-{d:02d}" for d in range(1, 31)]
         nov_rain_vals = [rain_by_date[d] for d in nov_dates if d in rain_by_date]
+        nov_expected = get_expected_month_days(year, 11)
+        nov_observed_partial_sum = float(np.sum(nov_rain_vals)) if nov_rain_vals else None
         nov_total_rain = float(np.sum(nov_rain_vals)) if len(nov_rain_vals) >= 27 else None
         nov_rain_days = sum(1 for r in nov_rain_vals if r >= 1.0) if len(nov_rain_vals) >= 27 else None
+
+        # Calendar-based rainfall total disclosure. Legacy flat keys above are
+        # unchanged (same gating, same values). This block labels each raw sum
+        # according to calendar completeness WITHOUT imputing missing days.
+        rainfall_period_totals = {
+            "october": {
+                "expected_days": oct_expected,
+                "valid_days": len(oct_rain_vals),
+                "raw_observed_sum_mm": oct_observed_partial_sum,
+                **_period_total_fields(len(oct_rain_vals), oct_expected, oct_observed_partial_sum),
+                "totals_disclosure": (
+                    "raw_observed_sum_mm preserves the observed-day sum. Legacy "
+                    "oct_total_rain remains gated and None below 28 valid days; it was "
+                    "not redefined. Missing days are never imputed."
+                ),
+            },
+            "late_october_oct16_31": {
+                "expected_days": oct_late_expected,
+                "valid_days": len(oct_late_rain_vals),
+                "raw_observed_sum_mm": oct_late_observed_partial_sum,
+                **_period_total_fields(len(oct_late_rain_vals), oct_late_expected, oct_late_observed_partial_sum),
+            },
+            "november": {
+                "expected_days": nov_expected,
+                "valid_days": len(nov_rain_vals),
+                "raw_observed_sum_mm": nov_observed_partial_sum,
+                **_period_total_fields(len(nov_rain_vals), nov_expected, nov_observed_partial_sum),
+            },
+            "sowing_window": {
+                "expected_days": expected_sowing_days,
+                "valid_days": valid_sowing_days,
+                "raw_observed_sum_mm": round(total_sowing_rain, 2),
+                **_period_total_fields(
+                    valid_sowing_days, expected_sowing_days, round(total_sowing_rain, 2)
+                ),
+            },
+        }
 
         yearly_records.append({
             "year": year,
@@ -927,6 +1292,7 @@ def summarize_handoff(
             "oct_rain_days": oct_rain_days,
             "nov_total_rain": round(nov_total_rain, 2) if nov_total_rain is not None else None,
             "nov_rain_days": nov_rain_days,
+            "rainfall_period_totals": rainfall_period_totals,
         })
 
     total_valid_years = len(yearly_records)
@@ -1019,7 +1385,7 @@ def summarize_handoff(
 
     period_comparisons = {
         "sowing_dry_days": compare_metric(
-            "Nov 1–20 Sowing Window Dry Days",
+            "Sowing Window Dry Days",
             np.array([r["dry_days_sowing"] for r in p1_records], dtype=float),
             np.array([r["dry_days_sowing"] for r in p2_records], dtype=float),
             "days",
@@ -1056,7 +1422,13 @@ def summarize_handoff(
         "formula_version": FORMULA_VERSION,
         "years_used": total_valid_years,
         "climatology_period": f"{start_year}–{end_year}",
-        "evidence_status": "robust_sample" if total_valid_years >= 20 else "insufficient_sample",
+        "evidence_status": "adequate_sample_count" if total_valid_years >= 20 else "insufficient_sample",
+        "sample_size_note": (
+            "adequate_sample_count means the eligible-year count met the project's "
+            "descriptive-statistics floor of 20 years. It is a sample-size statement only: "
+            "it does not certify data quality, representativeness, or evidence strength. "
+            "All frequencies below are retrospective historical frequencies."
+        ),
         "sowing_opportunity": {
             "workable_window_frequency_pct": workable_prob_pct,
             "years_with_workable_window": workable_years_count,
@@ -1091,10 +1463,10 @@ def summarize_handoff(
         "duplicate_policy": DUPLICATE_VALUE_POLICY,
         "scientific_disclosures": {
             "operational_proxy_definition": "Five consecutive dry days (< 1.0 mm/day) is a project-selected operational proxy for land tillage workability; not an official government agronomic standard or field readiness guarantee.",
-            "wet_day_definition": "WMO threshold: valid daily precipitation >= 1.0 mm is classified as a wet day; < 1.0 mm is a dry day.",
+            "wet_day_definition": "Project-selected wet-day convention: valid daily precipitation >= 1.0 mm is classified as a wet day; < 1.0 mm is a dry day. This threshold keeps likely physical meaning but it is applied here as a project operational convention; primary-source (WMO) attribution has not yet been independently verified.",
             "time_standard": "NASA POWER Local Solar Time (LST) solar-day boundary.",
             "sample_disclosure": f"Based on {total_valid_years} verified historical years ({start_year}–{end_year}) of NASA POWER Daily Agroclimatology point observations.",
-            "period_comparison_disclosure": "Exploratory retrospective climatological comparison (Period 1: 2001–2012 vs. Period 2: 2013–2025). P-values and test statistics are descriptive and exploratory; does not establish climate change attribution or agronomic significance.",
+            "period_comparison_disclosure": "Exploratory retrospective climatological comparison (Period 1: 2001–2012 vs. Period 2: 2013–2025). Welch t p-values use the Student's t distribution (Welch–Satterthwaite df, two-sided). Mann-Whitney U p-values are asymptotic approximations with tie correction and continuity correction; both are descriptive and exploratory, do not establish climate-change attribution or agronomic significance, and are not exact probabilities.",
             "disclaimer": "Descriptive historical evidence only. Historical frequencies describe past observations and do not constitute future probabilities or yield guarantees. Local field conditions, soil percolation, and seed variety must be verified on-ground.",
         },
     }
