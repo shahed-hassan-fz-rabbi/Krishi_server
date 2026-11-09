@@ -87,20 +87,21 @@ test("deterministic GPM fallback is bilingual, provenance-aware, and withholds i
   const originalConfigured = geminiAssistantClient.isConfigured;
   const originalPrecipitationTool = toolExecutors.getPrecipitationLatest;
   let complete = true;
+  let available = true;
   geminiAssistantClient.isConfigured = () => false;
   toolExecutors.getPrecipitationLatest = async ({ district }) => ({
-    status: "AVAILABLE",
+    status: available ? "AVAILABLE" : "UNAVAILABLE",
     district,
-    observationDate: "2024-01-07",
-    ingestedAt: "2026-11-09T01:37:39.775Z",
-    dailySummary: {
+    observationDate: available ? "2024-01-07" : null,
+    ingestedAt: available ? "2026-11-09T01:37:39.775Z" : null,
+    dailySummary: available ? {
       dateLabel: "2024-01-07",
       expectedIntervals: 48,
       observedIntervals: complete ? 48 : 47,
       validIntervals: complete ? 48 : 47,
       totalPrecipitationMm: complete ? 0 : null,
       completeness: complete ? "complete" : "incomplete",
-    },
+    } : null,
     source: "NASA GES DISC GPM IMERG Final V07",
     datasetKey: "nasa:gpm:imerg:3imerghh:v07",
     limitation: "Regional ~0.1 degree grid estimate, not a farm rain gauge.",
@@ -136,9 +137,156 @@ test("deterministic GPM fallback is bilingual, provenance-aware, and withholds i
     assert.equal(partial.dataQuality, "incomplete_or_unavailable");
     assert.match(partial.answer, /47\/48/);
     assert.doesNotMatch(partial.answer, /0\.00 mm/);
+
+    available = false;
+    const missing = await assistantChatService.handleChat({
+      message: "What is the latest rainfall from GPM?",
+      district: "cumilla",
+    });
+    assert.equal(missing.dataDate, null);
+    assert.equal(missing.dataQuality, "incomplete_or_unavailable");
+    assert.match(missing.answer, /No validated GPM IMERG precipitation observations/);
+    assert.doesNotMatch(missing.answer, /0\.00 mm|2024-01-07/);
   } finally {
     geminiAssistantClient.isConfigured = originalConfigured;
     toolExecutors.getPrecipitationLatest = originalPrecipitationTool;
+  }
+});
+
+test("deterministic POWER, SMAP, and MODIS fallback uses observed values in both languages", async () => {
+  const originalConfigured = geminiAssistantClient.isConfigured;
+  const originals = {
+    power: toolExecutors.getClimateRainfall,
+    smap: toolExecutors.getSoilMoistureLatest,
+    modis: toolExecutors.getVegetationLatest,
+  };
+  geminiAssistantClient.isConfigured = () => false;
+  toolExecutors.getClimateRainfall = async () => ({
+    district: "cumilla",
+    dataset: "NASA POWER Daily Point (2001-2025)",
+    provenance: "HISTORICAL_DATABASE",
+    annualHistorical: { meanAnnualTotalMm: 2454.3144 },
+  });
+  toolExecutors.getSoilMoistureLatest = async () => ({
+    district: "cumilla",
+    date: "2024-01-08",
+    soilMoisture: 0.3937,
+    percentage: "39.4%",
+    unit: "m³/m³",
+    retrievalQualityFlag: 8,
+    qualityClassification: "recommended",
+    provenance: "NASA NSIDC DAAC",
+  });
+  toolExecutors.getVegetationLatest = async () => ({
+    district: "cumilla",
+    date: "2024-02-18",
+    compositeDayOfYear: 50,
+    ndvi: 0.2361,
+    evi: 0.1159,
+    pixelReliability: 1,
+    qualityClassification: "marginal_data",
+    provenance: "NASA LP DAAC / AppEEARS",
+  });
+
+  try {
+    const powerEn = await assistantChatService.handleChat({ message: "NASA POWER historical rainfall", district: "cumilla" });
+    const powerBn = await assistantChatService.handleChat({ message: "কুমিল্লার ঐতিহাসিক বৃষ্টিপাত", district: "cumilla" });
+    for (const response of [powerEn, powerBn]) {
+      assert.equal(response.dataDate, "2001-2025");
+      assert.match(response.answer, /2454\.31/);
+      assert.doesNotMatch(response.answer, /70%|15 mm|2130/);
+      assert.ok(response.sources.some((source) => source.includes("NASA POWER")));
+    }
+    assert.equal(powerEn.language, "en");
+    assert.equal(powerBn.language, "bn");
+
+    const smapEn = await assistantChatService.handleChat({ message: "Latest soil moisture", district: "cumilla" });
+    const smapBn = await assistantChatService.handleChat({ message: "কুমিল্লার মাটির আর্দ্রতা", district: "cumilla" });
+    for (const response of [smapEn, smapBn]) {
+      assert.equal(response.dataDate, "2024-01-08");
+      assert.equal(response.dataQuality, "recommended");
+      assert.match(response.answer, /0\.3937/);
+      assert.match(response.answer, /8/);
+      assert.ok(response.sources.some((source) => source.includes("NASA SMAP")));
+    }
+    assert.equal(smapEn.language, "en");
+    assert.equal(smapBn.language, "bn");
+
+    const modisEn = await assistantChatService.handleChat({ message: "Latest MODIS vegetation NDVI", district: "cumilla" });
+    const modisBn = await assistantChatService.handleChat({ message: "কুমিল্লার MODIS সবুজতা", district: "cumilla" });
+    for (const response of [modisEn, modisBn]) {
+      assert.equal(response.dataDate, "2024-02-18");
+      assert.equal(response.dataQuality, "marginal_data");
+      assert.match(response.answer, /0\.2361/);
+      assert.match(response.answer, /0\.1159/);
+      assert.match(response.answer, /marginal_data/);
+      assert.doesNotMatch(response.answer, /healthy|সুস্থ ও ঘন/);
+      assert.ok(response.sources.some((source) => source.includes("NASA MODIS")));
+    }
+    assert.equal(modisEn.language, "en");
+    assert.equal(modisBn.language, "bn");
+  } finally {
+    geminiAssistantClient.isConfigured = originalConfigured;
+    toolExecutors.getClimateRainfall = originals.power;
+    toolExecutors.getSoilMoistureLatest = originals.smap;
+    toolExecutors.getVegetationLatest = originals.modis;
+  }
+});
+
+test("deterministic environmental fallback discloses missing observations without values", async () => {
+  const originalConfigured = geminiAssistantClient.isConfigured;
+  const originals = {
+    power: toolExecutors.getClimateRainfall,
+    smap: toolExecutors.getSoilMoistureLatest,
+    modis: toolExecutors.getVegetationLatest,
+  };
+  geminiAssistantClient.isConfigured = () => false;
+  toolExecutors.getClimateRainfall = async () => ({ error: "No data" });
+  toolExecutors.getSoilMoistureLatest = async () => ({ error: "No data" });
+  toolExecutors.getVegetationLatest = async () => ({ error: "No data" });
+
+  try {
+    const power = await assistantChatService.handleChat({ message: "NASA POWER rainfall", district: "cumilla" });
+    const smap = await assistantChatService.handleChat({ message: "soil moisture", district: "cumilla" });
+    const modis = await assistantChatService.handleChat({ message: "MODIS NDVI", district: "cumilla" });
+    for (const response of [power, smap, modis]) {
+      assert.equal(response.dataQuality, "unavailable");
+      assert.equal(response.dataDate, null);
+      assert.match(response.answer, /No validated|No validated|পাওয়া যায়নি|সংরক্ষিত নেই/);
+      assert.doesNotMatch(response.answer, /0\.3937|0\.2361|2454\.31|2130/);
+    }
+  } finally {
+    geminiAssistantClient.isConfigured = originalConfigured;
+    toolExecutors.getClimateRainfall = originals.power;
+    toolExecutors.getSoilMoistureLatest = originals.smap;
+    toolExecutors.getVegetationLatest = originals.modis;
+  }
+});
+
+test("deterministic fallback refuses unsupported NASA POWER parameters instead of returning rainfall", async () => {
+  const originalConfigured = geminiAssistantClient.isConfigured;
+  const originalClimateTool = toolExecutors.getClimateRainfall;
+  let toolCalls = 0;
+  geminiAssistantClient.isConfigured = () => false;
+  toolExecutors.getClimateRainfall = async () => {
+    toolCalls += 1;
+    return { annualHistorical: { meanAnnualTotalMm: 2454.3144 } };
+  };
+
+  try {
+    const response = await assistantChatService.handleChat({
+      message: "NASA POWER ozone concentration for Cumilla",
+      district: "cumilla",
+    });
+    assert.equal(response.dataQuality, "unsupported_parameter");
+    assert.equal(response.dataDate, null);
+    assert.equal(response.language, "en");
+    assert.equal(toolCalls, 0);
+    assert.match(response.answer, /no verified NASA POWER query for ozone/i);
+    assert.doesNotMatch(response.answer, /2454|mm/);
+  } finally {
+    geminiAssistantClient.isConfigured = originalConfigured;
+    toolExecutors.getClimateRainfall = originalClimateTool;
   }
 });
 

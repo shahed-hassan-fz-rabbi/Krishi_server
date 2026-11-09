@@ -11,6 +11,15 @@ import { DISTRICTS } from "../../config/climate.config.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 
+function isBanglaMessage(message) {
+  return /[\u0980-\u09FF]/.test(message);
+}
+
+function getAnnualRainfallMean(rainfallData) {
+  const value = rainfallData?.annualHistorical?.meanAnnualTotalMm;
+  return Number.isFinite(value) ? value : null;
+}
+
 // Simple in-memory conversation memory with bounded size
 const conversationStore = new Map();
 const MAX_CONVERSATIONS = 100;
@@ -53,6 +62,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
   const sources = [];
   let dataDate = null;
   let dataQuality = "unknown";
+  let language = "bn";
   const provenance = [];
   const limitations = [];
 
@@ -275,8 +285,34 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     };
   }
 
+  const isPowerQuery = normMessage.includes("nasa power") || normMessage.includes("power");
+  const unsupportedPowerTerms = ["ozone", "wind", "pressure", "evapotranspiration", "uv index", "ওজোন", "বায়ুচাপ", "বাতাসের গতি"];
+  const unsupportedPowerTerm = unsupportedPowerTerms.find((term) => normMessage.includes(term));
+  if (isPowerQuery && unsupportedPowerTerm) {
+    const isBangla = isBanglaMessage(message);
+    answer = isBangla
+      ? `NASA POWER-এর ${unsupportedPowerTerm} বিষয়ে এই সহকারীর যাচাইকৃত query নেই। কোনো মান অনুমান করা হচ্ছে না।`
+      : `The deterministic assistant has no verified NASA POWER query for ${unsupportedPowerTerm}. No value is inferred.`;
+    dataDate = null;
+    dataQuality = "unsupported_parameter";
+    sources.push("NASA POWER parameter scope");
+    provenance.push("Deterministic assistant capability registry");
+    limitations.push("Only implemented and validated parameter queries are answered by the deterministic fallback.");
+    return {
+      answer,
+      executedTools,
+      sources,
+      dataDate,
+      dataQuality,
+      provenance,
+      limitations,
+      language: isBangla ? "bn" : "en",
+      modelUsed: "deterministic-grounded-engine",
+    };
+  }
+
   // 0b. Check for Real-time Weather Forecasting Refusal (আজ বৃষ্টি / কাল বৃষ্টি / আবহাওয়া পূর্বাভাস)
-  if (normMessage.includes("আজ বৃষ্টি") || normMessage.includes("আজকে বৃষ্টি") || normMessage.includes("কাল বৃষ্টি") || normMessage.includes("আজকের বৃষ্টি") || normMessage.includes("পূর্বাভাস") || normMessage.includes("লাইভ বৃষ্টি")) {
+  if (normMessage.includes("আজ বৃষ্টি") || normMessage.includes("আজকে বৃষ্টি") || normMessage.includes("কাল বৃষ্টি") || normMessage.includes("আজকের বৃষ্টি") || normMessage.includes("পূর্বাভাস") || normMessage.includes("লাইভ বৃষ্টি") || normMessage.includes("will it rain today") || normMessage.includes("weather forecast") || normMessage.includes("live weather")) {
     const rainfallData = await toolExecutors.getClimateRainfall({ district: validDistrict, grouping: "annual" });
     executedTools.push({ toolName: "getClimateRainfall", result: rainfallData });
 
@@ -287,11 +323,18 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     limitations.push("নাসা পাওয়ার জলবায়ু পুনর্বিশ্লেষণ উপাত্ত কেবল দীর্ঘমেয়াদী ঐতিহাসিক স্বাভাবিকতা নির্দেশ করে, এটি তাৎক্ষণিক দৈনিক আবহাওয়া পূর্বাভাস নয়।");
 
     const districtBn = validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম";
-    const meanMm = rainfallData.annualHistorical?.mean_annual_total_mm ? Math.round(rainfallData.annualHistorical.mean_annual_total_mm) : 2130;
+    const meanMm = getAnnualRainfallMean(rainfallData);
+    language = isBanglaMessage(message) ? "bn" : "en";
+    if (meanMm == null) {
+      dataQuality = "unavailable";
+      dataDate = null;
+    }
 
-    answer = `কৃষি মামা নাসা পাওয়ার (NASA POWER) উপাত্তভিত্তিক দীর্ঘমেয়াদী জলবায়ু স্বাভাবিকতা ও ঐতিহাসিক বৃষ্টিপাতের হিসাব প্রদান করে। এটি আজকের দিনের তাৎক্ষণিক বা লাইভ আবহাওয়া পূর্বাভাস (Live Weather Forecast) নয়।\n\n` +
-      `আজকের নির্দিষ্ট বৃষ্টিপাতের পূর্বাভাসের জন্য বাংলাদেশ আবহাওয়া অধিদপ্তর (BMD) বা স্থানীয় কৃষি সম্প্রসারণ অধিদপ্তরের (DAE) বার্তা অনুসরণ করুন।\n\n` +
-      `তবে ঐতিহাসিক রেকর্ড অনুযায়ী ${districtBn} জেলায় গড় বার্ষিক বৃষ্টিপাত প্রায় ${meanMm} মিমি, যার ৭০% বর্ষাকালে ঘটে এবং শীতকালে বৃষ্টিপাত অত্যন্ত বিরল (মাসে গড়ে ১৫ মিমি-র নিচে)।`;
+    answer = language === "bn"
+      ? `NASA POWER-এর সংরক্ষিত ঐতিহাসিক জলবায়ু উপাত্ত আজকের লাইভ আবহাওয়া বা পূর্বাভাস নয়। আজকের পূর্বাভাসের জন্য বাংলাদেশ আবহাওয়া অধিদপ্তর (BMD) দেখুন।\n\n` +
+        (meanMm == null ? `${districtBn} জেলার যাচাইকৃত ঐতিহাসিক বার্ষিক বৃষ্টিপাতের গড় পাওয়া যায়নি; কোনো মান অনুমান করা হচ্ছে না।` : `NASA POWER-এর ২০০১–২০২৫ ঐতিহাসিক রেকর্ডে ${districtBn} জেলার গড় বার্ষিক বৃষ্টিপাত ${meanMm.toFixed(2)} মিমি।`)
+      : `NASA POWER provides archived climate observations, not today's live weather or a forecast. Check the Bangladesh Meteorological Department (BMD) for today's forecast.\n\n` +
+        (meanMm == null ? `A verified historical annual rainfall mean is unavailable for ${validDistrict}; no value is inferred.` : `In NASA POWER's 2001–2025 historical record, mean annual rainfall for ${validDistrict} is ${meanMm.toFixed(2)} mm.`);
 
     return {
       answer,
@@ -301,6 +344,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       dataQuality,
       provenance,
       limitations,
+      language,
       modelUsed: "deterministic-grounded-engine",
     };
   }
@@ -394,12 +438,16 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     }
   }
   // 2. Check for Soil Moisture query (মাটির আর্দ্রতা / SMAP)
-  else if (normMessage.includes("মাটির আর্দ্রতা") || normMessage.includes("আর্দ্রতা") || normMessage.includes("smap") || normMessage.includes("স্ম্যাপ")) {
+  else if (normMessage.includes("মাটির আর্দ্রতা") || normMessage.includes("আর্দ্রতা") || normMessage.includes("soil moisture") || normMessage.includes("smap") || normMessage.includes("স্ম্যাপ")) {
     const smapData = await toolExecutors.getSoilMoistureLatest({ district: validDistrict });
     executedTools.push({ toolName: "getSoilMoistureLatest", result: smapData });
 
+    language = isBanglaMessage(message) ? "bn" : "en";
     if (smapData.error) {
-      answer = `দুঃখিত, ${validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম"} জেলার জন্য মাটির আর্দ্রতার উপাত্ত এই মুহূর্তে উপলব্ধ নেই।`;
+      dataQuality = "unavailable";
+      answer = language === "bn"
+        ? `NASA SMAP-এর যাচাইকৃত মাটির আর্দ্রতা পর্যবেক্ষণ ${validDistrict} জেলার জন্য সংরক্ষিত নেই। কোনো মান অনুমান করা হচ্ছে না।`
+        : `No validated NASA SMAP soil-moisture observation is stored for ${validDistrict}. No value is inferred.`;
     } else {
       dataDate = smapData.date;
       dataQuality = smapData.qualityClassification;
@@ -408,19 +456,22 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       limitations.push(smapData.measurementDepth);
 
       const districtBn = validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম";
-      answer = `নাসা স্ম্যাপ (NASA SMAP) স্যাটেলাইটের সংরক্ষিত ঐতিহাসিক রেকর্ড অনুযায়ী (${smapData.date}) — এটি তৎকালীন স্যাটেলাইট পর্যবেক্ষণ, বর্তমান মুহূর্তের লাইভ পরিস্থিতি নয়।\n\n` +
-        `উক্ত তারিখে ${districtBn} জেলায় মাটির উপরিভাগের আর্দ্রতা ছিল ${smapData.percentage} (ভলিউমেট্রিক মান: ${smapData.soilMoisture} ${smapData.unit})।\n\n` +
-        `উপাত্তের গুণগত মান: ${smapData.qualityClassification === "recommended" ? "সুপারিশকৃত (Flag 8 - নির্ভরযোগ্য পরিমাপ)" : "সতর্কতামূলক (Flag 9)"}।\n\n` +
-        `গুরুত্বপূর্ণ সীমাবদ্ধতা: স্ম্যাপ স্যাটেলাইট কেবল মাটির উপরিভাগের ০ থেকে ৫ সেন্টিমিটার গভীরতার আর্দ্রতা পরিমাপ করে। এটি মাটির নিচের শিকড় অঞ্চলের আর্দ্রতা নয়।`;
+      answer = language === "bn"
+        ? `NASA SMAP SPL3SMP_E V006-এর ঐতিহাসিক পর্যবেক্ষণ (${smapData.date}) অনুযায়ী ${districtBn} জেলার পৃষ্ঠমাটির আর্দ্রতা ${smapData.soilMoisture} ${smapData.unit} (${smapData.percentage})। Retrieval quality flag ${smapData.retrievalQualityFlag}: ${smapData.qualityClassification === "recommended" ? "সুপারিশকৃত" : "সতর্কতামূলক"}। এটি লাইভ সেন্সর নয় এবং কেবল উপরিভাগের ০–৫ সেমি বোঝায়।`
+        : `The stored historical NASA SMAP SPL3SMP_E V006 observation for ${validDistrict} is ${smapData.soilMoisture} ${smapData.unit} (${smapData.percentage}) on ${smapData.date}. Retrieval quality flag ${smapData.retrievalQualityFlag}: ${smapData.qualityClassification}. This is a satellite estimate of the top 0–5 cm, not a live sensor reading.`;
     }
   }
   // 3. Check for Vegetation / Greenness (NDVI / EVI / সবুজতা / গাছপালা / উদ্ভিদ)
-  else if (normMessage.includes("ndvi") || normMessage.includes("evi") || normMessage.includes("সবুজতা") || normMessage.includes("modis") || normMessage.includes("মোডিস") || normMessage.includes("গাছপালা") || normMessage.includes("উদ্ভিদ") || normMessage.includes("ক্যানোপি") || normMessage.includes("গাছপালার অবস্থা") || normMessage.includes("ফসলের অবস্থা")) {
+  else if (normMessage.includes("ndvi") || normMessage.includes("evi") || normMessage.includes("vegetation") || normMessage.includes("সবুজতা") || normMessage.includes("modis") || normMessage.includes("মোডিস") || normMessage.includes("গাছপালা") || normMessage.includes("উদ্ভিদ") || normMessage.includes("ক্যানোপি") || normMessage.includes("গাছপালার অবস্থা") || normMessage.includes("ফসলের অবস্থা")) {
     const modisData = await toolExecutors.getVegetationLatest({ district: validDistrict });
     executedTools.push({ toolName: "getVegetationLatest", result: modisData });
+    language = isBanglaMessage(message) ? "bn" : "en";
 
     if (modisData.error) {
-      answer = `দুঃখিত, ${validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম"} জেলার জন্য মোডিস উপাত্ত এই মুহূর্তে উপলব্ধ নেই।`;
+      dataQuality = "unavailable";
+      answer = language === "bn"
+        ? `${validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম"} জেলার জন্য NASA MODIS-এর যাচাইকৃত উদ্ভিদ পর্যবেক্ষণ সংরক্ষিত নেই। কোনো মান অনুমান করা হচ্ছে না।`
+        : `No validated NASA MODIS vegetation observation is stored for ${validDistrict}. No value is inferred.`;
     } else {
       dataDate = modisData.date;
       dataQuality = modisData.qualityClassification;
@@ -431,10 +482,16 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       const districtBn = validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম";
       answer = `নাসা মোডিস (NASA MODIS) স্যাটেলাইটের সংরক্ষিত ঐতিহাসিক রেকর্ড অনুযায়ী (${modisData.date}, ডেস অফ ইয়ার ${modisData.compositeDayOfYear}) — এটি তৎকালীন স্যাটেলাইট পর্যবেক্ষণ, বর্তমান মুহূর্তের লাইভ অবস্থা নয়।\n\n` +
         `উক্ত তারিখে ${districtBn} জেলায় উদ্ভিদের সবুজতা সূচক:\n` +
-        `- এনডিভিআই (NDVI): ${modisData.ndvi} (সুস্থ ও ঘন উদ্ভিদের স্বাভাবিক পরিসরে রয়েছে)\n` +
+        `- এনডিভিআই (NDVI): ${modisData.ndvi}\n` +
         `- ইভিআই (EVI): ${modisData.evi}\n` +
-        `- ছবির গুণমান: Rank ${modisData.pixelReliability} (${modisData.qualityClassification === "good_data" ? "উত্তম মানের ক্লাউড-মুক্ত ছবি" : "মেঘলা বা প্রান্তিক"})\n\n` +
+        `- পিক্সেল নির্ভরযোগ্যতা: Rank ${modisData.pixelReliability} (${modisData.qualityClassification})\n\n` +
         `বৈজ্ঞানিক অর্থ ও সীমাবদ্ধতা: NDVI এবং EVI সূচক উদ্ভিদের ক্লোরোফিল শোষণ এবং পাতার ঘনত্ব প্রকাশ করে। এটি ফসলের সরাসরি রোগ নির্ণয় বা মোট ফলন পূর্বাভাস নয়।`;
+      if (language === "en") {
+        answer = `Stored historical NASA MODIS MOD13Q1.061 observation for ${validDistrict} (${modisData.date}, composite day ${modisData.compositeDayOfYear}):\n` +
+          `- NDVI: ${modisData.ndvi}\n- EVI: ${modisData.evi}\n` +
+          `- Pixel reliability: rank ${modisData.pixelReliability} (${modisData.qualityClassification})\n\n` +
+          `This is a historical 16-day composite. NDVI/EVI are greenness indices, not direct disease diagnoses or yield forecasts.`;
+      }
     }
   }
   // 4. Latest GPM satellite precipitation requests must use interval-backed observations.
@@ -490,7 +547,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     };
   }
   // 5. Check for Rainfall / Climate (বৃষ্টিপাত / জলবায়ু / আবহাওয়া)
-  else if (normMessage.includes("বৃষ্টি") || normMessage.includes("বৃষ্টিপাত") || normMessage.includes("বৃষ্টি কেমন") || normMessage.includes("তাপমাত্রা")) {
+  else if (normMessage.includes("বৃষ্টি") || normMessage.includes("বৃষ্টিপাত") || normMessage.includes("বৃষ্টি কেমন") || normMessage.includes("তাপমাত্রা") || normMessage.includes("rainfall") || normMessage.includes("precipitation") || normMessage.includes("nasa power")) {
     const rainfallData = await toolExecutors.getClimateRainfall({ district: validDistrict, grouping: "annual" });
     executedTools.push({ toolName: "getClimateRainfall", result: rainfallData });
 
@@ -501,13 +558,20 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     limitations.push("0.5 x 0.625 degree spatial resolution grid; reflects 25-year historical normals, not daily weather forecast.");
 
     const districtBn = validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম";
-    const meanMm = rainfallData.annualHistorical?.mean_annual_total_mm ? Math.round(rainfallData.annualHistorical.mean_annual_total_mm) : 2130;
+    const meanMm = getAnnualRainfallMean(rainfallData);
+    language = isBanglaMessage(message) ? "bn" : "en";
 
-    answer = `নাসা পাওয়ার (NASA POWER) উপাত্ত অনুযায়ী ${districtBn} জেলার ঐতিহাসিক বৃষ্টিপাতের চিত্র:\n` +
-      `- স্বাভাবিক বার্ষিক বৃষ্টিপাত: প্রায় ${meanMm} মিলিমিটার।\n` +
-      `- ঋতুভিত্তিক বণ্টন: মোট বৃষ্টিপাতের ৭০%-এর বেশি ঘটে বর্ষাকালে (জুন থেকে সেপ্টেম্বর)।\n` +
-      `- শুষ্ক মৌসুম: শীতকালে (ডিসেম্বর ও জানুয়ারি) বৃষ্টিপাত অত্যন্ত কম থাকে (মাসে গড়ে ১৫ মিমি-র নিচে)।\n\n` +
-      `তথ্যসূত্র: নাসা পাওয়ার ২০০১-২০২৫ সালের ২৫ বছরের ঐতিহাসিক স্যাটেলাইট জলবায়ু পুনর্বিশ্লেষণ গ্রিড।`;
+    if (meanMm == null) {
+      answer = language === "bn"
+        ? `${districtBn} জেলার জন্য NASA POWER-এর যাচাইকৃত ঐতিহাসিক বার্ষিক বৃষ্টিপাতের পরিসংখ্যান পাওয়া যায়নি। কোনো মান অনুমান করা হচ্ছে না।`
+        : `No validated historical annual rainfall statistic is available from NASA POWER for ${validDistrict}. No value is inferred.`;
+      dataQuality = "unavailable";
+      dataDate = null;
+    } else {
+      answer = language === "bn"
+        ? `NASA POWER Daily Point-এর ২০০১–২০২৫ ঐতিহাসিক রেকর্ড অনুযায়ী ${districtBn} জেলার গড় বার্ষিক বৃষ্টিপাত ${meanMm.toFixed(2)} মিমি। এটি ঐতিহাসিক গড়, দৈনিক পূর্বাভাস নয়।`
+        : `According to the 2001–2025 historical NASA POWER Daily Point record, mean annual rainfall for ${validDistrict} is ${meanMm.toFixed(2)} mm. This is a historical average, not a daily forecast.`;
+    }
   }
   // 5. Check for Mustard or specific Crop Calendar advisory (সরিষা / আমন / বোরো / আউশ নির্দেশিকা)
   else if (normMessage.includes("সরিষা") || normMessage.includes("আমন") || normMessage.includes("বোরো") || normMessage.includes("আউশ") || normMessage.includes("ক্যালেন্ডার") || normMessage.includes("বপন")) {
@@ -574,6 +638,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     dataQuality,
     provenance,
     limitations,
+    language,
     modelUsed: "deterministic-grounded-engine",
   };
 }
@@ -734,7 +799,7 @@ export class AssistantChatService {
         answer: fallbackResult.answer,
         language: fallbackResult.language || "bn",
         sources: fallbackResult.sources,
-        dataDate: fallbackResult.dataDate || new Date().toISOString().slice(0, 10),
+        dataDate: fallbackResult.dataDate ?? null,
         dataQuality: fallbackResult.dataQuality,
         provenance: fallbackResult.provenance,
         limitations: fallbackResult.limitations,
