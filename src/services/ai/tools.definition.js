@@ -5,6 +5,11 @@
 
 export const assistantTools = [
   {
+    name: "getPrecipitationLatest",
+    description: "Retrieve the latest stored NASA GPM IMERG Final V07 precipitation observation and daily summary. The daily total is present only when all 48 unique Bangladesh-local half-hour intervals are valid; disclose observation date, source, ~0.1 degree spatial resolution, coverage, and limitations. Never describe this as live weather or a farm rain-gauge measurement.",
+    parameters: { type: "OBJECT", properties: { district: { type: "STRING", description: "Target district code: 'cumilla' or 'chattogram'." } }, required: ["district"] },
+  },
+  {
     name: "getClimateNormals",
     description:
       "Retrieve 2001-2025 monthly historical baseline averages for rainfall (PRECTOTCORR) and temperature (T2M) for an approved district in Bangladesh from NASA POWER reanalysis.",

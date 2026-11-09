@@ -17,6 +17,7 @@ const smapObservationSchema = new mongoose.Schema(
     districtCode: { type: String, required: true, lowercase: true, index: true },
     dateLabel: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
     date: { type: Date, required: true },
+    acquisitionTimeUtc: { type: Date, default: null },
     orbit: { type: String, required: true, enum: ["AM", "PM"], default: "AM" },
 
     // Volumetric soil moisture (m^3/m^3)
@@ -26,6 +27,7 @@ const smapObservationSchema = new mongoose.Schema(
 
     // Quality assessment
     retrievalQualityFlag: { type: Number, required: true },
+    retrievalQualityDcaFlag: { type: Number, default: null },
     isRecommendedQuality: { type: Boolean, required: true, default: false },
     qualityClassification: {
       type: String,
@@ -34,7 +36,7 @@ const smapObservationSchema = new mongoose.Schema(
       default: "not_recommended",
       index: true,
     },
-    surfaceFlag: { type: Number, default: 0 },
+    surfaceFlag: { type: Number, default: null },
     qaBits: {
       bit0NotRecommended: { type: Boolean, default: false },
       bit1NotAttempted: { type: Boolean, default: false },
@@ -63,6 +65,9 @@ const smapObservationSchema = new mongoose.Schema(
     // Scientific metadata & provenance
     datasetKey: { type: String, required: true, default: "nasa:smap:spl3smp_e:v006" },
     granuleId: { type: String, default: null },
+    sourceUrl: { type: String, default: null },
+    sourceFileSha256: { type: String, default: null },
+    sourceMetadata: { type: mongoose.Schema.Types.Mixed, default: null },
     ingestionRunId: { type: String, required: true, index: true },
     provenanceDatasetId: { type: String, ref: "NasaDataset", default: "nasa:smap:spl3smp_e:v006" },
   },

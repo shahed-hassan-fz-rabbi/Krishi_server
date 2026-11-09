@@ -66,7 +66,7 @@ const farmSchema = new mongoose.Schema(
     soil: {
       type: {
         type: String,
-        enum: ["clay", "loam", "sandy", "silt", "other", "unknown"],
+        enum: ["clay", "loam", "clay_loam", "sandy_loam", "sandy", "silt", "alluvial", "other", "unknown"],
         default: "unknown",
       },
       drainage: {

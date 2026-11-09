@@ -68,7 +68,8 @@ export async function createFarm(req, res, next) {
       return errorResponse(res, 400, "Validation failed", "VALIDATION_ERROR", validation.errors);
     }
 
-    const { farmName, location, land, soil, water, crop, notes } = req.body;
+    const { location, land, soil, water, crop, notes } = req.body;
+    const farmName = (req.body.farmName || req.body.name || "").trim();
     const lowerDistrictCode = location.districtCode.trim().toLowerCase();
     const districtObj = DISTRICTS.find((d) => d.code === lowerDistrictCode);
     const districtName = districtObj ? districtObj.nameEn : "Cumilla";

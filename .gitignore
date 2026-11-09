@@ -39,6 +39,7 @@ __pycache__/
 # ---- NASA Raw Data Staging (Never commit satellite binaries) ----
 data/smap/raw/
 data/modis/raw/
+data/gpm/raw/
 *.h5
 *.hdf
 *.nc4

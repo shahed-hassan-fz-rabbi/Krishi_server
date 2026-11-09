@@ -14,9 +14,12 @@
 import { NasaObservation } from "../models/nasaobservation.model.js";
 import { SmapObservation } from "../models/smapobservation.model.js";
 import { ModisObservation } from "../models/modisobservation.model.js";
+import { GpmObservation } from "../models/gpmobservation.model.js";
 import { snapshotService } from "./snapshot.service.js";
 import { generateFarmLifecycleTimeline } from "./croplifecycle.service.js";
 import { DISTRICTS } from "../config/climate.config.js";
+import { GPM } from "../config/gpm.config.js";
+import { summarizeGpmLocalDay } from "./nasa/gpm.validation.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code.toLowerCase()));
 
@@ -103,6 +106,7 @@ export async function getFarmEnvironmentalIntelligence(farm) {
 
   // 4. Fetch NASA MODIS Vegetation Context
   const modisContext = await resolveModisContext(districtCode, isDbConnected);
+  const precipitationContext = await resolveGpmContext(districtCode, isDbConnected);
 
   // 5. Synthesize Deterministic Summary
   const summary = generateDeterministicSummary({
@@ -110,6 +114,7 @@ export async function getFarmEnvironmentalIntelligence(farm) {
     climateContext,
     smapContext,
     modisContext,
+    precipitationContext,
     currentStageInfo,
   });
 
@@ -145,6 +150,7 @@ export async function getFarmEnvironmentalIntelligence(farm) {
         "Environmental observations represent regional grid and satellite footprints for this district, not an in-situ plot sensor at exact farm boundaries.",
     },
     rainfallAndClimate: climateContext,
+    precipitation: precipitationContext,
     soilMoisture: smapContext,
     vegetation: modisContext,
     lifecycleContext: lifecycleSynthesis,
@@ -153,6 +159,7 @@ export async function getFarmEnvironmentalIntelligence(farm) {
       power: "NASA POWER data are gridded meteorological/reanalysis products (0.5° x 0.625°). They are historical observations, not local plot rain gauge readings, and strictly NOT a weather forecast.",
       smap: "NASA SMAP measures volumetric topsoil moisture in the top 0-5 cm soil column only at 9 km grid posting. It does not measure root-zone moisture and is not an automated irrigation prescription.",
       modis: "NASA MODIS 250m NDVI indicates regional canopy greenness and photosynthetic activity. It does not independently diagnose specific crop diseases, nutrient deficiencies, or pests.",
+      gpm: "NASA GPM IMERG Final estimates precipitation at a regional ~0.1° grid. Daily accumulation is reported only for 48 valid half-hour intervals; this is not a farm rain gauge.",
       institutional: "Before undertaking major agricultural operations or chemical applications, consult your local DAE Upazila Sub-Assistant Agriculture Officer (SAAO).",
     },
     meta: {
@@ -169,6 +176,32 @@ export async function getFarmEnvironmentalIntelligence(farm) {
   envCache.set(cacheKey, { timestamp: Date.now(), data: result });
 
   return result;
+}
+
+async function resolveGpmContext(districtCode, isDbConnected) {
+  if (!isDbConnected) return { status: "UNAVAILABLE", datasetKey: GPM.datasetKey, product: GPM.product, provider: GPM.provider, spatialResolution: GPM.spatialResolution, dailySummary: null, limitations: "No verified offline GPM snapshot is configured." };
+  try {
+    const latest = await GpmObservation.findOne({ districtCode, runType: GPM.runType, productVersion: GPM.granuleVersion, sourceQuality: "valid" }).sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
+    if (!latest) return { status: "UNAVAILABLE", datasetKey: GPM.datasetKey, product: GPM.product, provider: GPM.provider, spatialResolution: GPM.spatialResolution, dailySummary: null, limitations: "No validated GPM observations are stored for this district." };
+    const dayDocs = await GpmObservation.find({ districtCode, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+    const dailySummary = summarizeGpmLocalDay(districtCode, latest.dateLabel, dayDocs);
+    return {
+      status: "AVAILABLE",
+      provenance: "HISTORICAL",
+      datasetKey: GPM.datasetKey,
+      product: GPM.product,
+      provider: GPM.provider,
+      observationDate: latest.dateLabel,
+      ingestedAt: dayDocs.reduce((max, row) => row.createdAt && (!max || row.createdAt > max) ? row.createdAt : max, null),
+      dailySummary,
+      latestInterval: { intervalStartUtc: latest.intervalStartUtc, precipitationRateMmHr: latest.precipitationRateMmHr, precipitationMm: latest.precipitationMm, quality: latest.sourceQuality },
+      spatialResolution: GPM.spatialResolution,
+      temporalResolution: "30-minute intervals; daily boundary is Bangladesh Standard Time (UTC+06:00)",
+      limitations: "Regional grid point estimate, not a plot-scale rain gauge. Daily total is withheld unless all 48 unique half-hour intervals are valid.",
+    };
+  } catch {
+    return { status: "UNAVAILABLE", datasetKey: GPM.datasetKey, product: GPM.product, provider: GPM.provider, spatialResolution: GPM.spatialResolution, dailySummary: null, limitations: "GPM observations could not be read from the database." };
+  }
 }
 
 /**
@@ -194,7 +227,7 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
       ]);
 
       if (rainDoc) {
-        latestRainfall = { value: rainDoc.value, unit: "mm/day", dateLabel: rainDoc.dateLabel };
+        latestRainfall = { value: rainDoc.value, unit: "mm/day", dateLabel: rainDoc.dateLabel, observationDate: rainDoc.dateLabel, ingestedAt: rainDoc.createdAt || null, quality: rainDoc.quality };
         isFromDb = true;
       }
       if (tempDoc) {
@@ -207,13 +240,15 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
             : null,
           unit: "°C",
           dateLabel: tempDoc.dateLabel,
+          observationDate: tempDoc.dateLabel,
+          ingestedAt: tempDoc.createdAt || null,
         };
       }
       if (rhDoc) {
-        latestRh = { value: rhDoc.value, unit: "%", dateLabel: rhDoc.dateLabel };
+        latestRh = { value: rhDoc.value, unit: "%", dateLabel: rhDoc.dateLabel, observationDate: rhDoc.dateLabel, ingestedAt: rhDoc.createdAt || null };
       }
       if (solarDoc) {
-        latestSolar = { value: solarDoc.value, unit: "MJ/m²/day", dateLabel: solarDoc.dateLabel };
+        latestSolar = { value: solarDoc.value, unit: "MJ/m²/day", dateLabel: solarDoc.dateLabel, observationDate: solarDoc.dateLabel, ingestedAt: solarDoc.createdAt || null };
       }
 
       // Fetch last 14 days of rainfall for trend chart
@@ -369,6 +404,7 @@ async function resolveSmapContext(districtCode, isDbConnected) {
     soilMoisture: latest.soilMoisture !== undefined ? Number(latest.soilMoisture.toFixed(4)) : null,
     unit: "m³/m³",
     observationDate: latest.dateLabel,
+    ingestedAt: latest.createdAt || null,
     orbit: latest.orbit || "AM",
     surfaceTemperatureC: latest.surfaceTemperatureK ? Number((latest.surfaceTemperatureK - 273.15).toFixed(1)) : null,
     quality: {
@@ -445,6 +481,7 @@ async function resolveModisContext(districtCode, isDbConnected) {
     ndvi: latest.ndvi !== undefined ? Number(latest.ndvi.toFixed(4)) : null,
     evi: latest.evi !== undefined ? Number(latest.evi.toFixed(4)) : null,
     observationDate: latest.dateLabel,
+    ingestedAt: latest.createdAt || null,
     compositePeriod: "16-Day Composite Window",
     quality: {
       pixelReliability: latest.pixelReliability,

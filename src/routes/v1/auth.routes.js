@@ -7,6 +7,10 @@ import {
   getMe,
   logout,
   updateProfile,
+  getGoogleStatus,
+  initiateGoogleAuth,
+  handleGoogleCallback,
+  verifyGoogleTokenDirect,
 } from "../../controllers/auth.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { env } from "../../config/env.config.js";
@@ -34,5 +38,11 @@ router.post("/login", authRateLimiter, login);
 router.get("/me", authenticate, getMe);
 router.post("/logout", logout);
 router.patch("/profile", authenticate, updateProfile);
+
+// Google OAuth 2.0 routes
+router.get("/google/status", getGoogleStatus);
+router.get("/google", initiateGoogleAuth);
+router.get("/google/callback", handleGoogleCallback);
+router.post("/google/token", authRateLimiter, verifyGoogleTokenDirect);
 
 export default router;

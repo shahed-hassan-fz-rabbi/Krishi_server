@@ -20,7 +20,8 @@ const modisObservationSchema = new mongoose.Schema(
     ndvi: { type: Number, default: null },
     evi: { type: Number, default: null },
 
-    // Raw Sensor Values (before scale factor 0.0001)
+    // Source values as returned by AppEEARS (typically already scaled); the
+    // original row and bundle checksums are retained in sourceMetadata.
     rawNdvi: { type: Number, default: null },
     rawEvi: { type: Number, default: null },
 
@@ -45,6 +46,9 @@ const modisObservationSchema = new mongoose.Schema(
 
     // Scientific metadata & provenance
     datasetKey: { type: String, required: true, default: "nasa:modis:mod13q1:v061" },
+    sourceGranuleId: { type: String, default: null },
+    sourceProduct: { type: String, default: null },
+    sourceMetadata: { type: mongoose.Schema.Types.Mixed, default: null },
     taskId: { type: String, default: null },
     ingestionRunId: { type: String, required: true, index: true },
     provenanceDatasetId: { type: String, ref: "NasaDataset", default: "nasa:modis:mod13q1:v061" },

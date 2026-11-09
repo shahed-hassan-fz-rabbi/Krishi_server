@@ -157,24 +157,36 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       if (envData.error) {
         answer = `পরিবেশগত উপাত্ত অনুসন্ধানে ত্রুটি হয়েছে: ${envData.error}`;
       } else {
-        sources.push("NASA SMAP (SPL3SMP_E)", "NASA MODIS (MOD13Q1)", "NASA POWER (2001-2025)");
-        dataDate = envData.environmentalContext?.soilMoistureSurface?.date || "সাম্প্রতিক";
+        sources.push("NASA GPM IMERG Final V07", "NASA SMAP (SPL3SMP_E)", "NASA MODIS (MOD13Q1)", "NASA POWER (2001-2025)");
+        dataDate = envData.environmentalContext?.precipitation?.observationDate || envData.environmentalContext?.soilMoistureSurface?.date || "উপাত্তের তারিখ অনুপলব্ধ";
         dataQuality = "grounded";
         provenance.push("NASA Earth Science Data Systems");
         limitations.push(envData.scientificSafeguards.rootZoneDisclaimer);
         limitations.push(envData.scientificSafeguards.vegetationDisclaimer);
+        limitations.push(envData.scientificSafeguards.rainfallDisclaimer);
 
         const sm = envData.environmentalContext?.soilMoistureSurface;
         const veg = envData.environmentalContext?.vegetationIndex;
         const clim = envData.environmentalContext?.climateBaseline;
+        const gpm = envData.environmentalContext?.precipitation;
+        const dailyRain = gpm?.dailySummary;
+        const smValue = Number.isFinite(sm?.soilMoisture) ? sm.soilMoisture.toFixed(4) + " m³/m³" : "মান নেই";
+        const smQuality = sm?.retrievalQualityFlag ?? "অজানা";
+        const vegValue = Number.isFinite(veg?.ndvi) ? veg.ndvi.toFixed(3) : "উপাত্ত নেই";
+        const vegEvi = Number.isFinite(veg?.evi) ? veg.evi.toFixed(3) : "উপাত্ত নেই";
+        const climateRain = clim?.annualRainfallTotalMm ?? "উপাত্ত নেই";
+        const dailyRainValue = dailyRain?.completeness === "complete" && dailyRain.validIntervals === 48
+          ? dailyRain.totalPrecipitationMm + " মিমি"
+          : "অসম্পূর্ণ বা অনুপস্থিত; দৈনিক মোট প্রকাশ করা হয়নি";
 
         answer = `আপনার খামার "${envData.farmName}" (${envData.district}${envData.upazila ? `, ${envData.upazila}` : ""})-এর নাসা পরিবেশগত পর্যবেক্ষণ:\n` +
-          `- মাটির আর্দ্রতা (SMAP ০-৫ সেমি): ${sm?.soilMoisturePercent || "উপাত্ত নেই"} (${sm?.soilMoistureM3M3 ? `${sm.soilMoistureM3M3} m³/m³` : "মান নেই"})\n` +
-          `- ফসলের সবুজতা (MODIS NDVI): ${veg?.ndviValue || "উপাত্ত নেই"} (গুণমান: ${veg?.pixelReliabilityDescription || "যাচাইকৃত"})\n` +
-          `- ঐতিহাসিক গড় বৃষ্টিপাত: বছরে প্রায় ${clim?.annualRainfallTotalMm || 0} মিমি\n\n` +
+          `- GPM IMERG Final V07 বৃষ্টিপাত: ${dailyRainValue}; পর্যবেক্ষণ ${dailyRain?.dateLabel || "উপাত্ত নেই"}, বৈধ ব্যবধান ${dailyRain?.validIntervals ?? 0}/48, স্থানিক স্কেল ~0.1°।\n` +
+          `- মাটির আর্দ্রতা (NASA SMAP SPL3SMP_E, ০-৫ সেমি): ${smValue}; পর্যবেক্ষণ ${sm?.date || "উপাত্ত নেই"}, মান পতাকা ${smQuality}, গুণমান ${sm?.qualityClassification || "অজানা"}।\n` +
+          `- উদ্ভিদ সূচক (NASA MODIS MOD13Q1.061): NDVI ${vegValue}, EVI ${vegEvi}; পর্যবেক্ষণ ${veg?.date || "উপাত্ত নেই"}, গুণমান ${veg?.qualityClassification || "অজানা"}, ২৫০ মিটার পিক্সেল।\n` +
+          `- NASA POWER 2001–2025 ঐতিহাসিক জলবায়ু ভিত্তিরেখা: বার্ষিক বৃষ্টিপাত ${climateRain} মিমি; এটি লাইভ আবহাওয়া বা পূর্বাভাস নয়।\n\n` +
           `বৈজ্ঞানিক সতর্কতা:\n` +
           `- SMAP কেবল মাটির ওপরের ০-৫ সেমির আর্দ্রতা মাপতে পারে। গাছের মূল অঞ্চলের জন্য ক্ষেত পরীক্ষা জরুরি।\n` +
-          `- MODIS উদ্ভিদের পাতার ঘনত্ব নির্দেশ করে, এটি কোনো রোগবালাইয়ের সুনির্দিষ্ট চিকিৎসা নয়।`;
+          `- MODIS আঞ্চলিক ক্যানোপি সবুজতা নির্দেশ করে; এটি রোগ নির্ণয় বা নির্দিষ্ট খামারের প্রত্যক্ষ পরিমাপ নয়। GPM-ও আঞ্চলিক গ্রিড অনুমান, খামারের বৃষ্টিমাপক নয়।`;
       }
       return {
         answer,
@@ -425,7 +437,59 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         `বৈজ্ঞানিক অর্থ ও সীমাবদ্ধতা: NDVI এবং EVI সূচক উদ্ভিদের ক্লোরোফিল শোষণ এবং পাতার ঘনত্ব প্রকাশ করে। এটি ফসলের সরাসরি রোগ নির্ণয় বা মোট ফলন পূর্বাভাস নয়।`;
     }
   }
-  // 4. Check for Rainfall / Climate (বৃষ্টিপাত / জলবায়ু / আবহাওয়া)
+  // 4. Latest GPM satellite precipitation requests must use interval-backed observations.
+  else if (normMessage.includes("gpm") || normMessage.includes("imerg") || normMessage.includes("latest rainfall") || normMessage.includes("latest rain") || normMessage.includes("সর্বশেষ বৃষ্টিপাত") || normMessage.includes("সর্বশেষ বৃষ্টি") || normMessage.includes("সাম্প্রতিক বৃষ্টিপাত")) {
+    const gpmData = await toolExecutors.getPrecipitationLatest({ district: validDistrict });
+    executedTools.push({ toolName: "getPrecipitationLatest", result: gpmData });
+    sources.push(gpmData.source || "NASA GPM IMERG Final V07");
+    provenance.push(gpmData.datasetKey || "nasa:gpm:imerg:3imerghh:v07");
+    dataDate = gpmData.observationDate || null;
+
+    const daily = gpmData.dailySummary;
+    const validIntervals = daily?.validIntervals ?? 0;
+    const isComplete = daily?.completeness === "complete" && validIntervals === 48 && Number.isFinite(daily?.totalPrecipitationMm);
+    dataQuality = isComplete ? "complete_48_of_48" : "incomplete_or_unavailable";
+    limitations.push(gpmData.limitation || "Regional ~0.1° grid estimate; not a farm rain-gauge measurement.");
+
+    const districtBn = validDistrict === "cumilla" ? "কুমিল্লা" : "চট্টগ্রাম";
+    const districtEn = validDistrict === "cumilla" ? "Cumilla" : "Chattogram";
+    const isBangla = /[\u0980-\u09FF]/.test(message);
+    const ingestedText = gpmData.ingestedAt
+      ? new Date(gpmData.ingestedAt).toISOString()
+      : null;
+    if (gpmData.status !== "AVAILABLE" || !daily) {
+      answer = isBangla
+        ? `${districtBn} জেলার জন্য যাচাইকৃত GPM IMERG বৃষ্টিপাতের পর্যবেক্ষণ বর্তমানে সংরক্ষিত নেই। কোনো মান অনুমান করা হচ্ছে না।`
+        : `No validated GPM IMERG precipitation observations are stored for ${districtEn}. No value is inferred.`;
+    } else {
+      const dailyValue = isComplete
+        ? `${daily.totalPrecipitationMm.toFixed(2)} mm`
+        : isBangla
+          ? `প্রকাশযোগ্য নয় (${validIntervals}/48 বৈধ অর্ধঘণ্টা ব্যবধান)`
+          : `withheld (${validIntervals}/48 valid half-hour intervals)`;
+      answer = isBangla
+        ? `NASA GPM IMERG Final V07-এর সংরক্ষিত ঐতিহাসিক পর্যবেক্ষণ অনুযায়ী ${districtBn} জেলার সর্বশেষ পর্যবেক্ষণ তারিখ ${gpmData.observationDate}।` +
+          `\nদৈনিক বৃষ্টিপাত: ${dailyValue}; বৈধ ব্যবধান ${validIntervals}/48।` +
+          `${ingestedText ? `\nডেটাবেসে অন্তর্ভুক্তির সময়: ${ingestedText}।` : ""}` +
+          `\nএটি প্রায় ০.১° (~১০ কিমি) গ্রিডের আঞ্চলিক অনুমান, খামারের বৃষ্টিমাপক নয়; এটি লাইভ আবহাওয়া নয়।`
+        : `According to the stored historical NASA GPM IMERG Final V07 record, the latest observation for ${districtEn} is dated ${gpmData.observationDate}.` +
+          `\nDaily precipitation: ${dailyValue}; valid intervals: ${validIntervals}/48.` +
+          `${ingestedText ? `\nDatabase ingestion time: ${ingestedText}.` : ""}` +
+          `\nThis is a regional ~0.1° (~10 km) grid estimate, not a farm rain gauge or live weather.`;
+    }
+    return {
+      answer,
+      language: isBangla ? "bn" : "en",
+      executedTools,
+      sources,
+      dataDate,
+      dataQuality,
+      provenance,
+      limitations,
+      modelUsed: "deterministic-grounded-engine",
+    };
+  }
+  // 5. Check for Rainfall / Climate (বৃষ্টিপাত / জলবায়ু / আবহাওয়া)
   else if (normMessage.includes("বৃষ্টি") || normMessage.includes("বৃষ্টিপাত") || normMessage.includes("বৃষ্টি কেমন") || normMessage.includes("তাপমাত্রা")) {
     const rainfallData = await toolExecutors.getClimateRainfall({ district: validDistrict, grouping: "annual" });
     executedTools.push({ toolName: "getClimateRainfall", result: rainfallData });
@@ -598,6 +662,14 @@ export class AssistantChatService {
             sources.add("NASA POWER Daily Point (2001-2025)");
             if (!dataDate) dataDate = "2001-2025";
             provenance.push("NASA Langley Research Center POWER Project");
+          } else if (call.toolName === "getPrecipitationLatest") {
+            sources.add(res.source || "NASA GPM IMERG Final V07");
+            if (res.observationDate) dataDate = res.observationDate;
+            dataQuality = res.dailySummary?.completeness === "complete" && res.dailySummary?.validIntervals === 48
+              ? "complete_48_of_48"
+              : "incomplete_or_unavailable";
+            if (res.datasetKey) provenance.push(res.datasetKey);
+            if (res.limitation) limitations.push(res.limitation);
           } else if (call.toolName === "getCropCalendarAdvisory") {
             sources.add("BAMIS (DAE) & BRRI/BARI Research Bulletins");
             if (res.provenance) provenance.push(res.provenance);
@@ -629,7 +701,7 @@ export class AssistantChatService {
 
         responsePayload = {
           answer: geminiResult.answer,
-          language: "bn",
+          language: /[\u0980-\u09FF]/.test(trimmedMessage) ? "bn" : "en",
           sources: Array.from(sources),
           dataDate: dataDate || new Date().toISOString().slice(0, 10),
           dataQuality,
@@ -660,7 +732,7 @@ export class AssistantChatService {
 
       responsePayload = {
         answer: fallbackResult.answer,
-        language: "bn",
+        language: fallbackResult.language || "bn",
         sources: fallbackResult.sources,
         dataDate: fallbackResult.dataDate || new Date().toISOString().slice(0, 10),
         dataQuality: fallbackResult.dataQuality,

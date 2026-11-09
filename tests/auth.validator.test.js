@@ -7,6 +7,14 @@ import {
   validateProfileUpdateInput,
 } from "../src/validators/auth.validator.js";
 import { User } from "../src/models/user.model.js";
+import { resolveJwtSecret } from "../src/config/security.config.js";
+
+test("JWT signing secret uses fallback only outside production", () => {
+  assert.throws(() => resolveJwtSecret("production", undefined), /JWT_SECRET must be configured/);
+  assert.throws(() => resolveJwtSecret("production", "too-short"), /at least 32 characters/);
+  assert.equal(resolveJwtSecret("production", "x".repeat(32)), "x".repeat(32));
+  assert.equal(resolveJwtSecret("test", undefined), "krishi-mama-super-secure-jwt-signing-secret-key-32chars");
+});
 
 test("validateRegisterInput accepts valid input and enforces role=farmer", () => {
   const result = validateRegisterInput({

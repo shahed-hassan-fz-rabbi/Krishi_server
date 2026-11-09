@@ -11,7 +11,7 @@ const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 const VALID_CROP_CODES = new Set(["monsoon_aman", "boro_rice", "aus_rice", "mustard"]);
 const VALID_LAND_UNITS = new Set(["decimal", "acre", "hectare", "bigha", "katha"]);
 const VALID_LAND_TYPES = new Set(["high", "medium_high", "medium_low", "low", "unspecified"]);
-const VALID_SOIL_TYPES = new Set(["clay", "loam", "sandy", "silt", "other", "unknown"]);
+const VALID_SOIL_TYPES = new Set(["clay", "loam", "clay_loam", "sandy_loam", "sandy", "silt", "alluvial", "other", "unknown"]);
 const VALID_DRAINAGE = new Set(["good", "moderate", "poor", "waterlogged", "unknown"]);
 const VALID_IRRIGATION = new Set(["available", "limited", "unavailable"]);
 
@@ -24,7 +24,7 @@ export function validateCreateFarmInput(body = {}) {
   const errors = [];
 
   // 1. Farm Name
-  const farmName = (body.farmName || "").trim();
+  const farmName = (body.farmName || body.name || "").trim();
   if (!farmName) {
     errors.push({ field: "farmName", message: "Farm name is required." });
   } else if (farmName.length < 2) {

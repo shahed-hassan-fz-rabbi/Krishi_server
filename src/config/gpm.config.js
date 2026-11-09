@@ -1,0 +1,33 @@
+/** NASA GPM IMERG Final half-hourly V07 product metadata. */
+export const GPM = {
+  datasetKey: "nasa:gpm:imerg:3imerghh:v07",
+  shortName: "GPM_3IMERGHH",
+  product: "GPM IMERG Final Precipitation L3 Half-Hourly 0.1 degree V07",
+  collectionConceptId: "C2723754847-GES_DISC",
+  provider: "NASA GES DISC",
+  cmrProvider: "GES_DISC",
+  cmrSearchUrl: "https://cmr.earthdata.nasa.gov/search/granules.json",
+  opendapBaseUrl: "https://gpm1.gesdisc.eosdis.nasa.gov/opendap",
+  version: "07",
+  runType: "Final",
+  granuleVersion: "07B",
+  doi: "10.5067/GPM/IMERG/3B-HH/07",
+  spatialResolution: "0.1 degree (~10 km) grid",
+  temporalResolutionMinutes: 30,
+  precipitationUnit: "mm/hr",
+  precipitationFillValue: -9999.9,
+  qualityIndexFillValue: -9999.9,
+  randomErrorFillValue: -9999.9,
+  probabilityLiquidFillValue: -9999,
+  regionalSubset: {
+    lonStart: 2711,
+    lonEnd: 2718,
+    latStart: 1123,
+    latEnd: 1134,
+  },
+  districtGridTargets: {
+    cumilla: { latitude: 23.46186, longitude: 91.18503 },
+    chattogram: { latitude: 22.3384, longitude: 91.8317 },
+  },
+  documentationUrl: "https://disc.gsfc.nasa.gov/datasets/GPM_3IMERGHH_07/summary",
+};

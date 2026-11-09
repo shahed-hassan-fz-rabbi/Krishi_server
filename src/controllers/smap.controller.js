@@ -36,6 +36,7 @@ function buildSmapLatestPayload(district, latestDoc, amDoc = null, pmDoc = null,
   const data = {
     districtCode: district,
     dateLabel: latestDoc.dateLabel,
+    ingestedAt: latestDoc.createdAt || null,
     latestOrbit: latestDoc.orbit,
     soilMoisture: latestDoc.soilMoisture,
     unit: SMAP.unit,
@@ -214,6 +215,7 @@ function buildSmapHistoryPayload(district, from, to, qualityFilter, docs, isSnap
 
     return {
       date: d.dateLabel,
+      ingestedAt: d.createdAt || null,
       orbit: d.orbit,
       soilMoisture: d.soilMoisture,
       qualityFlag: d.retrievalQualityFlag,

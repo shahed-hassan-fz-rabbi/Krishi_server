@@ -17,8 +17,12 @@ import { SMAP } from "../config/smap.config.js";
 import { MODIS } from "../config/modis.config.js";
 import { SmapObservation } from "../models/smapobservation.model.js";
 import { ModisObservation } from "../models/modisobservation.model.js";
+import { GpmObservation } from "../models/gpmobservation.model.js";
+import { NasaObservation } from "../models/nasaobservation.model.js";
+import { GPM } from "../config/gpm.config.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { snapshotService } from "../services/snapshot.service.js";
+import { summarizeGpmLocalDay } from "../services/nasa/gpm.validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,7 +79,7 @@ export async function getGisDistricts(req, res, next) {
       zoom: d.zoom,
       bbox: d.bbox,
       refCoord: d.refCoord,
-      availableSensors: ["smap", "modis", "power"],
+      availableSensors: ["gpm", "smap", "modis", "power"],
     }));
 
     return successResponse(res, 200, list, {
@@ -165,6 +169,8 @@ export async function getGisLayers(req, res, next) {
     // Fetch latest SMAP observation from MongoDB or snapshot fallback
     let latestSmap = null;
     let latestModis = null;
+    let latestGpm = null;
+    let latestPower = null;
 
     if (snapshotService.isDbConnected()) {
       try {
@@ -182,6 +188,22 @@ export async function getGisLayers(req, res, next) {
       } catch {
         latestModis = null;
       }
+
+      try {
+        latestGpm = await GpmObservation.findOne({ districtCode, runType: "Final", sourceQuality: "valid" })
+          .sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
+        if (latestGpm) {
+          const dayDocs = await GpmObservation.find({ districtCode, dateLabel: latestGpm.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+          latestGpm.dailySummary = summarizeGpmLocalDay(districtCode, latestGpm.dateLabel, dayDocs);
+        }
+      } catch { latestGpm = null; }
+
+      try {
+        const climateDocs = await Promise.all(["PRECTOTCORR", "T2M", "T2M_MAX", "T2M_MIN", "RH2M"].map((parameter) =>
+          NasaObservation.findOne({ districtCode, parameter, quality: "ok" }).sort({ dateLabel: -1 }).lean()
+        ));
+        latestPower = Object.fromEntries(climateDocs.filter(Boolean).map((doc) => [doc.parameter, { value: doc.value, unit: doc.unit, observationDate: doc.dateLabel, ingestedAt: doc.createdAt, quality: doc.quality, timeStandard: doc.timeStandard }]));
+      } catch { latestPower = null; }
     }
 
     if (!latestSmap) {
@@ -212,7 +234,21 @@ export async function getGisLayers(req, res, next) {
           nativeResolution: "0.5° × 0.625° grid (~50 km)",
           timeStandard: "LST (Local Solar Time)",
           description: "Regional assimilation gridded climate estimates (Precipitation, Temperature, Solar Radiation)",
+          observations: latestPower || {},
+          limitation: "NASA POWER is historical gridded reanalysis and climate context, not live weather or a farm-scale measurement.",
         },
+        precipitation: latestGpm ? {
+          sensorName: GPM.product,
+          datasetKey: GPM.datasetKey,
+          location: { latitude: latestGpm.latitude, longitude: latestGpm.longitude },
+          nativeResolution: GPM.spatialResolution,
+          temporalResolution: "30-minute source intervals; daily totals use Bangladesh UTC+06:00 days",
+          observation: {
+            latestInterval: { dateLabel: latestGpm.dateLabel, intervalStartUtc: latestGpm.intervalStartUtc, precipitationMm: latestGpm.precipitationMm, precipitationRateMmHr: latestGpm.precipitationRateMmHr, quality: latestGpm.sourceQuality, ingestedAt: latestGpm.createdAt },
+            dailySummary: latestGpm.dailySummary,
+          },
+          spatialDisclosure: "Regional 0.1° grid point estimate; not a district-wide field measurement. Daily total is null unless all 48 unique intervals are valid.",
+        } : null,
         soilMoisture: latestSmap
           ? {
               sensorName: "NASA SMAP (SPL3SMP_E V006)",
@@ -280,6 +316,7 @@ export async function getGisLayers(req, res, next) {
       boundaryProvenance: "BBS 2020 Admin-2 / UN OCHA HDX",
       smapProvenance: SMAP.datasetKey,
       modisProvenance: MODIS.datasetKey,
+      gpmProvenance: GPM.datasetKey,
       provenance: !snapshotService.isDbConnected() ? "SNAPSHOT" : "HISTORICAL_DATABASE",
       databaseConnected: snapshotService.isDbConnected(),
     });

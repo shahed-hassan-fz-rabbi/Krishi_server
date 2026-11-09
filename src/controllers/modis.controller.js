@@ -29,6 +29,7 @@ function buildModisLatestPayload(district, latestDoc, isSnapshot = false, limita
   const data = {
     districtCode: district,
     dateLabel: latestDoc.dateLabel,
+    ingestedAt: latestDoc.createdAt || null,
     compositeDayOfYear: latestDoc.compositeDayOfYear,
     ndvi: latestDoc.ndvi,
     evi: latestDoc.evi,
@@ -80,6 +81,7 @@ function buildModisHistoryPayload(district, from, to, qualityFilter, docs, isSna
 
     return {
       date: d.dateLabel,
+      ingestedAt: d.createdAt || null,
       compositeDayOfYear: d.compositeDayOfYear,
       ndvi: d.ndvi,
       evi: d.evi,

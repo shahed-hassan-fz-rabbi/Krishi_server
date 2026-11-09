@@ -19,7 +19,7 @@ async function main() {
 
   const app = createApp();
 
-  const server = app.listen(env.port, () => {
+  const server = app.listen(env.port, "0.0.0.0", () => {
     console.log(`[server] Krishi Mama API listening on http://localhost:${env.port} (${env.nodeEnv})`);
     console.log(`[server] REST API base path: /api/v1`);
   });

@@ -327,10 +327,14 @@ NASA Environmental Satellite Context:
 - Regional Canopy Greenness (MODIS NDVI): ${environmentalContext.vegetationIndexProxy ? `${environmentalContext.vegetationIndexProxy.ndvi} (Date: ${environmentalContext.vegetationIndexProxy.observedDate})` : "Archived regional baseline"}
 `;
 
-      const response = await ai.models.generateContent({
+      const geminiPromise = ai.models.generateContent({
         model: env.geminiModel || "gemini-2.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Gemini generation timed out after 7000ms")), 7000)
+      );
+      const response = await Promise.race([geminiPromise, timeoutPromise]);
 
       if (response && response.text) {
         geminiOutput = response.text.trim();

@@ -14,9 +14,12 @@ import { MODIS } from "../../config/modis.config.js";
 import { SmapObservation } from "../../models/smapobservation.model.js";
 import { ModisObservation } from "../../models/modisobservation.model.js";
 import { NasaObservation } from "../../models/nasaobservation.model.js";
+import { GpmObservation } from "../../models/gpmobservation.model.js";
+import { GPM } from "../../config/gpm.config.js";
 import { analyzeDistrictClimate, analyzeHandoff } from "../climate/analysis.service.js";
 import { snapshotService } from "../snapshot.service.js";
 import mongoose from "mongoose";
+import { summarizeGpmLocalDay } from "../nasa/gpm.validation.js";
 import { Farm } from "../../models/farm.model.js";
 import { FarmActivity } from "../../models/farmactivity.model.js";
 import {
@@ -66,6 +69,25 @@ function normalizeDistrict(code) {
 }
 
 export const toolExecutors = {
+  /** Latest available GPM Final V07 daily summary with strict 48-interval validation. */
+  async getPrecipitationLatest({ district }) {
+    const validDistrict = normalizeDistrict(district);
+    if (!validDistrict) return { error: `District '${district}' is not supported.`, supportedDistricts: [...VALID_DISTRICT_CODES] };
+    if (!snapshotService.isDbConnected()) return { status: "UNAVAILABLE", district: validDistrict, source: GPM.provider, limitation: "No verified offline GPM snapshot is configured." };
+    const latest = await GpmObservation.findOne({ districtCode: validDistrict, runType: GPM.runType, productVersion: GPM.granuleVersion, sourceQuality: "valid" }).sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
+    if (!latest) return { status: "UNAVAILABLE", district: validDistrict, source: GPM.provider, limitation: "No validated GPM observations are stored for this district." };
+    const dayDocs = await GpmObservation.find({ districtCode: validDistrict, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+    const dailySummary = summarizeGpmLocalDay(validDistrict, latest.dateLabel, dayDocs);
+    return {
+      status: "AVAILABLE", district: validDistrict, observationDate: latest.dateLabel,
+      ingestedAt: dayDocs.reduce((max, row) => row.createdAt && (!max || row.createdAt > max) ? row.createdAt : max, null),
+      dailySummary, source: `${GPM.provider} ${GPM.product}`, datasetKey: GPM.datasetKey,
+      productVersion: GPM.version, runType: GPM.runType, spatialResolution: GPM.spatialResolution,
+      temporalResolution: "30-minute intervals; Bangladesh-local daily boundary UTC+06:00",
+      limitation: "Regional grid point estimate, not a farm rain gauge. Incomplete days have no daily total.",
+    };
+  },
+
   /**
    * 1. Historical climate normals from NASA POWER (2001-2025).
    */
@@ -690,6 +712,7 @@ export const toolExecutors = {
       toolExecutors.getVegetationLatest({ district }),
       toolExecutors.getClimateNormals({ district }),
     ]);
+    const precipitation = await toolExecutors.getPrecipitationLatest({ district });
 
     return {
       farmName: farm.farmName,
@@ -699,6 +722,7 @@ export const toolExecutors = {
       cropName: farm.crop?.cropName,
       environmentalContext: {
         soilMoistureSurface: soilMoisture,
+        precipitation,
         vegetationIndex: vegetation,
         climateBaseline: {
           district: climate.district,
@@ -710,6 +734,7 @@ export const toolExecutors = {
         rootZoneDisclaimer: "NASA SMAP observes top 0-5 cm surface soil moisture only. Deep root-zone water requires field monitoring.",
         vegetationDisclaimer: "NASA MODIS NDVI indicates canopy greenness and is not a direct disease diagnosis.",
         climateDisclaimer: "NASA POWER normals are historical 2001-2025 statistical baselines, not weather forecasts.",
+        rainfallDisclaimer: "GPM reports historical satellite-grid precipitation. A daily total is available only for 48 valid half-hour intervals and does not represent an individual farm rain gauge.",
       },
     };
   },
