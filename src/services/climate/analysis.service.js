@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { NasaObservation } from "../../models/nasaobservation.model.js";
-import { DISTRICTS, PARAMETER_NAMES, TARGET_RANGE } from "../../config/climate.config.js";
+import { DISTRICTS, PARAMETER_NAMES, POWER, TARGET_RANGE } from "../../config/climate.config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCIENCE_DIR = path.resolve(__dirname, "../../../science");
@@ -22,6 +22,7 @@ export async function createObservationSnapshot({
   endIso = TARGET_RANGE.end,
 }) {
   const query = {
+    datasetKey: POWER.datasetKey,
     districtCode,
     parameter: { $in: parameters },
     dateLabel: { $gte: startIso, $lte: endIso },

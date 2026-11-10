@@ -17,6 +17,7 @@ import cropLifecycleRoutes from "./croplifecycle.routes.js";
 import cropPlanningRoutes from "./cropplanning.routes.js";
 import notificationRoutes from "./notification.routes.js";
 import gpmRoutes from "./gpm.routes.js";
+import divisionsRoutes from "./divisions.routes.js";
 
 const router = Router();
 
@@ -35,5 +36,6 @@ router.use("/farms", farmRoutes);
 router.use("/crop-lifecycle", cropLifecycleRoutes);
 router.use("/crop-planning", cropPlanningRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/divisions", divisionsRoutes);
 
 export default router;

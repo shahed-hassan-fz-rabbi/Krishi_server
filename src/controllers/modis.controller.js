@@ -161,7 +161,28 @@ export async function getLatestVegetation(req, res, next) {
       );
     }
 
-    const latestDoc = await ModisObservation.findOne({ districtCode: district })
+    const reliableFilter = {
+      districtCode: district,
+      datasetKey: MODIS.datasetKey,
+      isReliableQuality: true,
+      qualityClassification: "good_data",
+      pixelReliability: 0,
+      $or: [
+        { ndvi: { $type: "number", $gte: -0.2, $lte: 1 } },
+        { evi: { $type: "number", $gte: -0.2, $lte: 1 } },
+      ],
+    };
+    const validObservationCount = await ModisObservation.countDocuments(reliableFilter);
+    if (validObservationCount === 0) {
+      return errorResponse(
+        res,
+        503,
+        `No reliable MODIS vegetation observations are stored for district '${district}'.`,
+        "DATA_NO_VALID_OBSERVATIONS"
+      );
+    }
+
+    const latestDoc = await ModisObservation.findOne({ districtCode: district, datasetKey: MODIS.datasetKey })
       .sort({ dateLabel: -1 })
       .lean();
 
@@ -183,6 +204,9 @@ export async function getLatestVegetation(req, res, next) {
         `No MODIS vegetation observations are currently stored for district '${district}'. Ingestion job must be executed.`,
         "DATA_NOT_INGESTED"
       );
+    }
+    if (latestDoc.districtCode !== district) {
+      return errorResponse(res, 500, "MODIS district isolation check failed.", "DATA_ISOLATION_VIOLATION");
     }
 
     const { data, meta } = buildModisLatestPayload(district, latestDoc, false);

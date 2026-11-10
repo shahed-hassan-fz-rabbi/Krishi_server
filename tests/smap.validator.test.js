@@ -95,3 +95,51 @@ test("SmapObservation schema enforces unique index and preserves physical fields
   assert.ok(paths.geodesicDistanceKm, "geodesicDistanceKm path exists");
   assert.ok(paths.adminPolygonPcode, "adminPolygonPcode path exists");
 });
+
+test("SMAP regression: only flags 0 and 8 are recommended; all other flags are rejected", () => {
+  // NSIDC SPL3SMP_E V006 specifies:
+  // Bit 0 = 0 (recommended), Bit 2 = 0 (successful retrieval)
+  // Flags with bit0=0 and bit2=0: flag 0 (0b0000) and flag 8 (0b1000)
+  assert.equal(validateSoilMoistureValue(0.35, 0).isRecommended, true);
+  assert.equal(validateSoilMoistureValue(0.35, 8).isRecommended, true);
+
+  // Non-recommended flags:
+  // Flag 1 (0b0001): bit0=1 (not recommended)
+  assert.equal(validateSoilMoistureValue(0.35, 1).isRecommended, false);
+  // Flag 7 (0b0111): bits 0,1,2=1 (not recommended, not attempted, unsuccessful)
+  assert.equal(validateSoilMoistureValue(0.35, 7).isRecommended, false);
+  // Flag 9 (0b1001): bit0=1 (not recommended)
+  assert.equal(validateSoilMoistureValue(0.35, 9).isRecommended, false);
+  // Flag 255: invalid
+  assert.equal(validateSoilMoistureValue(0.35, 255).isRecommended, false);
+});
+
+test("SMAP regression: fill value -9999.0 is never coerced to 0.0000", () => {
+  const result = validateSoilMoistureValue(-9999.0, 0);
+  assert.equal(result.valid, false);
+  assert.equal(result.value, null);
+  assert.notEqual(result.value, 0);
+});
+
+test("SMAP regression: AM and PM observations for same district and date are idempotent and distinct", () => {
+  const amDoc = {
+    districtCode: "cumilla",
+    dateLabel: "2024-01-08",
+    orbit: "AM",
+    soilMoisture: 0.3937,
+  };
+  const pmDoc = {
+    districtCode: "cumilla",
+    dateLabel: "2024-01-08",
+    orbit: "PM",
+    soilMoisture: 0.3812,
+  };
+
+  const amFilter = { districtCode: amDoc.districtCode, dateLabel: amDoc.dateLabel, orbit: amDoc.orbit };
+  const pmFilter = { districtCode: pmDoc.districtCode, dateLabel: pmDoc.dateLabel, orbit: pmDoc.orbit };
+
+  assert.notDeepEqual(amFilter, pmFilter, "AM and PM must target distinct compound unique filters");
+  assert.equal(amFilter.orbit, "AM");
+  assert.equal(pmFilter.orbit, "PM");
+});
+

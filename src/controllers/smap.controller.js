@@ -131,8 +131,26 @@ export async function getLatestSoilMoisture(req, res, next) {
       );
     }
 
+    const recommendedFilter = {
+      districtCode: district,
+      datasetKey: SMAP.datasetKey,
+      retrievalQualityFlag: { $in: [0, 8] },
+      isRecommendedQuality: true,
+      qualityClassification: "recommended",
+      soilMoisture: { $type: "number", $gte: 0, $lte: 1 },
+    };
+    const validObservationCount = await SmapObservation.countDocuments(recommendedFilter);
+    if (validObservationCount === 0) {
+      return errorResponse(
+        res,
+        503,
+        `No recommended SMAP soil moisture observations are stored for district '${district}'.`,
+        "DATA_NO_VALID_OBSERVATIONS"
+      );
+    }
+
     // Find the latest recorded observation
-    const latestDoc = await SmapObservation.findOne({ districtCode: district })
+    const latestDoc = await SmapObservation.findOne({ districtCode: district, datasetKey: SMAP.datasetKey })
       .sort({ dateLabel: -1, orbit: -1 })
       .lean();
 
@@ -157,12 +175,19 @@ export async function getLatestSoilMoisture(req, res, next) {
         "DATA_NOT_INGESTED"
       );
     }
+    if (latestDoc.districtCode !== district) {
+      return errorResponse(res, 500, "SMAP district isolation check failed.", "DATA_ISOLATION_VIOLATION");
+    }
 
     // Also look for corresponding AM/PM on the same date
     const sameDateDocs = await SmapObservation.find({
       districtCode: district,
+      datasetKey: SMAP.datasetKey,
       dateLabel: latestDoc.dateLabel,
     }).lean();
+    if (sameDateDocs.some((doc) => doc.districtCode !== district)) {
+      return errorResponse(res, 500, "SMAP district isolation check failed.", "DATA_ISOLATION_VIOLATION");
+    }
 
     const amDoc = sameDateDocs.find((d) => d.orbit === "AM") || null;
     const pmDoc = sameDateDocs.find((d) => d.orbit === "PM") || null;

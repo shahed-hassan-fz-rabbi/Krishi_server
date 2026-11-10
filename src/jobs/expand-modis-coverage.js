@@ -9,6 +9,7 @@ import { ModisObservation } from "../models/modisobservation.model.js";
 import {
   submitAppeearsPointTask, getAppeearsTaskStatus, getAppeearsBundle,
   downloadAppeearsFile, validateModisObservation,
+  computeModisCompositeWindow, doesModisCompositeOverlap,
 } from "../services/nasa/appeears.client.js";
 
 const points = {
@@ -91,7 +92,7 @@ async function main() {
     const granuleListSha256 = crypto.createHash("sha256").update(granuleBytes).digest("hex");
     const sourceGranules = granuleBytes.toString("utf8").split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     const csv = parseCsv(bytes.toString("utf8"));
-    const docs = []; const rejected = { invalidQuality: 0, fillOrOutOfRange: 0 };
+    const docs = []; const rejected = { invalidQuality: 0, fillOrOutOfRange: 0, outOfWindow: 0 };
     for (const row of csv) {
       const districtCode = (row.ID || row.id || "").toLowerCase();
       if (!points[districtCode]) continue;
@@ -100,9 +101,13 @@ async function main() {
       const qaCol = Object.keys(row).find(k => /pixel_reliability/.test(k) && !/Description|bitmask|MODLAND/.test(k));
       const doyCol = Object.keys(row).find(k => /composite_day_of_the_year/.test(k));
       const dateLabel = row.Date || row.date || "";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateLabel) || dateLabel < range.start || dateLabel > range.end ||
-          new Date(`${dateLabel}T00:00:00Z`).toISOString().slice(0, 10) !== dateLabel) {
-        throw new Error(`MODIS row has invalid/out-of-window date for ${districtCode}`);
+      const compositeWindow = computeModisCompositeWindow(dateLabel, 16);
+      if (!compositeWindow) {
+        throw new Error(`MODIS row has invalid/unparseable date "${dateLabel}" for ${districtCode}`);
+      }
+      if (!doesModisCompositeOverlap(dateLabel, range, 16)) {
+        rejected.outOfWindow += 1;
+        continue;
       }
       const rawNdvi = number(row[ndviCol]); const rawEvi = number(row[eviCol]);
       const pixelReliability = number(row[qaCol]); const compositeDoy = number(row[doyCol]);
@@ -124,15 +129,23 @@ async function main() {
       const sourceGranuleId = row.Granule || row.granule || (granuleLine ? pathGranuleId(granuleLine) : null);
       if (!sourceGranuleId) throw new Error(`No AppEEARS granule provenance matched ${dateLabel}`);
       docs.push({
-        districtCode, dateLabel, date: new Date(`${dateLabel}T00:00:00.000Z`), compositeDayOfYear: validated.compositeDoy,
+        districtCode, dateLabel, date: compositeWindow.startDate, compositeDayOfYear: validated.compositeDoy,
         ndvi: validated.ndvi, evi: validated.evi, rawNdvi, rawEvi, pixelReliability: validated.pixelReliability,
         qualityClassification: validated.qualityClassification, isReliableQuality: validated.isReliableQuality,
         latitude: lat, longitude: lon, targetReferenceLat: p.latitude, targetReferenceLon: p.longitude,
         geodesicDistanceKm: Number(distanceKm.toFixed(3)), adminPolygonPcode: p.admin, datasetKey: MODIS.datasetKey,
         taskId, sourceGranuleId, sourceProduct: MODIS.productName,
-        sourceMetadata: { collectionConceptId: MODIS.collectionConceptId, requestedDateRange: range,
+        sourceMetadata: {
+          collectionConceptId: MODIS.collectionConceptId, requestedDateRange: range,
+          compositeCoverageInterval: {
+            start: compositeWindow.startDateLabel,
+            end: compositeWindow.endDateLabel,
+            days: 16,
+          },
           csvFile: csvFile.file_name, csvSha256, granuleListFile: granuleFile.file_name,
-          granuleListSha256, row }, ingestionRunId: runId, provenanceDatasetId: MODIS.datasetKey,
+          granuleListSha256, row
+        },
+        ingestionRunId: runId, provenanceDatasetId: MODIS.datasetKey,
       });
     }
     if (!docs.length || new Set(docs.map(d => `${d.districtCode}:${d.dateLabel}`)).size !== docs.length) {

@@ -50,9 +50,18 @@ export async function getLatestGpm(req, res, next) {
     const v = validateRequest(req);
     if (v.error) return errorResponse(res, ...v.error);
     if (!snapshotService.isDbConnected()) return errorResponse(res, 503, "GPM observations are unavailable while the database is disconnected.", "DATA_UNAVAILABLE", undefined, metadata(false));
-    const latest = await GpmObservation.findOne({ districtCode: v.district }).sort({ intervalStartUtc: -1 }).lean();
+    const districtFilter = { districtCode: v.district, datasetKey: GPM.datasetKey, runType: GPM.runType, productVersion: GPM.granuleVersion };
+    const validObservationCount = await GpmObservation.countDocuments({
+      ...districtFilter,
+      sourceQuality: "valid",
+      precipitationMm: { $type: "number", $gte: 0 },
+    });
+    if (validObservationCount === 0) return errorResponse(res, 503, "No valid GPM observations are stored for this district.", "DATA_NO_VALID_OBSERVATIONS", undefined, metadata(true));
+    const latest = await GpmObservation.findOne(districtFilter).sort({ intervalStartUtc: -1 }).lean();
     if (!latest) return errorResponse(res, 503, "No GPM observations are stored for this district.", "DATA_NOT_INGESTED", undefined, metadata(true));
-    const dayDocs = await GpmObservation.find({ districtCode: v.district, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+    if (latest.districtCode !== v.district) return errorResponse(res, 500, "GPM district isolation check failed.", "DATA_ISOLATION_VIOLATION", undefined, metadata(true));
+    const dayDocs = await GpmObservation.find({ ...districtFilter, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+    if (dayDocs.some((doc) => doc.districtCode !== v.district)) return errorResponse(res, 500, "GPM district isolation check failed.", "DATA_ISOLATION_VIOLATION", undefined, metadata(true));
     return successResponse(res, 200, {
       districtCode: v.district,
       latestInterval: { observationDate: latest.dateLabel, intervalStartUtc: latest.intervalStartUtc, intervalEndUtc: latest.intervalEndUtc, precipitationRateMmHr: latest.precipitationRateMmHr, precipitationMm: latest.precipitationMm, quality: latest.sourceQuality, ingestedAt: latest.createdAt },

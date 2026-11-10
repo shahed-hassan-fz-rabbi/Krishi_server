@@ -263,3 +263,37 @@ export function validateModisObservation({ rawNdvi, rawEvi, pixelReliability, co
     compositeDoy: compositeDoy && compositeDoy > 0 ? compositeDoy : null,
   };
 }
+
+/**
+ * Computes the 16-day composite coverage interval for a given MOD13Q1 composite start date.
+ * MODIS 16-day composites start on `dateLabel` (Day 1) and extend through Day 16.
+ */
+export function computeModisCompositeWindow(dateLabel, compositeDays = 16) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateLabel || "")) {
+    return null;
+  }
+  const startDate = new Date(`${dateLabel}T00:00:00.000Z`);
+  if (Number.isNaN(startDate.getTime()) || startDate.toISOString().slice(0, 10) !== dateLabel) {
+    return null;
+  }
+  const endDate = new Date(startDate.getTime() + (compositeDays - 1) * 86400000);
+  const endDateLabel = endDate.toISOString().slice(0, 10);
+  return {
+    startDate,
+    endDate,
+    startDateLabel: dateLabel,
+    endDateLabel,
+    compositeDays,
+  };
+}
+
+/**
+ * Checks whether a MODIS 16-day composite coverage interval intersects the requested date range.
+ * Interval overlap: compositeStart <= rangeEnd AND compositeEnd >= rangeStart.
+ */
+export function doesModisCompositeOverlap(dateLabel, range, compositeDays = 16) {
+  const window = computeModisCompositeWindow(dateLabel, compositeDays);
+  if (!window || !range?.start || !range?.end) return false;
+  return window.startDateLabel <= range.end && window.endDateLabel >= range.start;
+}
+

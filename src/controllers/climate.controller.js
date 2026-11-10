@@ -40,7 +40,7 @@ export async function getLatestClimateObservations(req, res, next) {
     const district = (req.query.district || "").trim().toLowerCase();
     if (!VALID_DISTRICT_CODES.has(district)) return errorResponse(res, 400, "A supported district is required.", "INVALID_DISTRICT");
     if (!snapshotService.isDbConnected()) return errorResponse(res, 503, "No offline daily POWER observation snapshot is configured.", "DATA_UNAVAILABLE", undefined, { provenance: "UNAVAILABLE", databaseConnected: false });
-    const rows = await Promise.all(PARAMETER_NAMES.map((parameter) => NasaObservation.findOne({ districtCode: district, parameter, quality: "ok" }).sort({ dateLabel: -1 }).lean()));
+    const rows = await Promise.all(PARAMETER_NAMES.map((parameter) => NasaObservation.findOne({ datasetKey: DATASET_KEY, districtCode: district, parameter, quality: "ok" }).sort({ dateLabel: -1 }).lean()));
     const observations = Object.fromEntries(rows.filter(Boolean).map((row) => [row.parameter, { value: row.value, unit: row.unit, observationDate: row.dateLabel, timeStandard: row.timeStandard, quality: row.quality, ingestedAt: row.createdAt || null }]));
     if (!Object.keys(observations).length) return errorResponse(res, 503, "No verified NASA POWER observations are stored for this district.", "DATA_NOT_INGESTED", undefined, { provenance: "UNAVAILABLE", databaseConnected: true });
     return successResponse(res, 200, { districtCode: district, observations }, { dataset: "NASA POWER Daily Point Agroclimatology", datasetKey: DATASET_KEY, provider: "NASA POWER / Langley Research Center", provenance: "HISTORICAL_DATABASE", databaseConnected: true, timeStandard: "LST (Local Solar Time), not Bangladesh Standard Time", isForecast: false, spatialResolution: "0.5° × 0.625° source grids (~50 km)" });
@@ -138,6 +138,7 @@ export async function getClimateSummary(req, res, next) {
 
     // Check data availability in DB
     const obsCount = await NasaObservation.countDocuments({
+      datasetKey: DATASET_KEY,
       districtCode: district,
       dateLabel: { $gte: from, $lte: to },
     });
@@ -286,6 +287,7 @@ export async function getRainfall(req, res, next) {
     }
 
     const obsCount = await NasaObservation.countDocuments({
+      datasetKey: DATASET_KEY,
       districtCode: district,
       parameter: "PRECTOTCORR",
       dateLabel: { $gte: from, $lte: to },
@@ -308,6 +310,7 @@ export async function getRainfall(req, res, next) {
 
     if (grouping === "daily") {
       const dailyObs = await NasaObservation.find({
+        datasetKey: DATASET_KEY,
         districtCode: district,
         parameter: "PRECTOTCORR",
         dateLabel: { $gte: from, $lte: to },
@@ -437,6 +440,7 @@ export async function getTemperature(req, res, next) {
     }
 
     const obsCount = await NasaObservation.countDocuments({
+      datasetKey: DATASET_KEY,
       districtCode: district,
       parameter: "T2M",
       dateLabel: { $gte: from, $lte: to },
@@ -536,6 +540,7 @@ export async function getHandoffPlan(req, res, next) {
 
     // Verify data availability in DB
     const obsCount = await NasaObservation.countDocuments({
+      datasetKey: DATASET_KEY,
       districtCode: district,
     });
 

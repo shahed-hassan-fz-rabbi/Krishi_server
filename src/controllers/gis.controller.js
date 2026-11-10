@@ -200,7 +200,7 @@ export async function getGisLayers(req, res, next) {
 
       try {
         const climateDocs = await Promise.all(["PRECTOTCORR", "T2M", "T2M_MAX", "T2M_MIN", "RH2M"].map((parameter) =>
-          NasaObservation.findOne({ districtCode, parameter, quality: "ok" }).sort({ dateLabel: -1 }).lean()
+          NasaObservation.findOne({ datasetKey: "nasa:power:daily:point", districtCode, parameter, quality: "ok" }).sort({ dateLabel: -1 }).lean()
         ));
         latestPower = Object.fromEntries(climateDocs.filter(Boolean).map((doc) => [doc.parameter, { value: doc.value, unit: doc.unit, observationDate: doc.dateLabel, ingestedAt: doc.createdAt, quality: doc.quality, timeStandard: doc.timeStandard }]));
       } catch { latestPower = null; }
