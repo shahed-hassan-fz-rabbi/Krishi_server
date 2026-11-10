@@ -57,6 +57,23 @@ export const TRUSTED_ISSUING_AUTHORITIES = APPROVED_ISSUING_AUTHORITIES.map(
   (auth) => new RegExp(`^${auth.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")
 );
 
+const AUTHORITY_SOURCE_HOSTS = [
+  { authorities: ["bmd", "bangladesh meteorological department", "bangladesh meteorological department (bmd)"], hosts: ["bmd.gov.bd", "www.bmd.gov.bd", "live3.bmd.gov.bd"] },
+  { authorities: ["ddm", "department of disaster management", "department of disaster management (ddm)"], hosts: ["ddm.gov.bd", "www.ddm.gov.bd"] },
+  { authorities: ["modmrd", "modmr", "ministry of disaster management and relief", "ministry of disaster management and relief (modmr)"], hosts: ["modmr.gov.bd", "www.modmr.gov.bd"] },
+  { authorities: ["bamis", "bangladesh agro-meteorological information system (bamis)", "bamis / department of agricultural extension (dae)", "department of agricultural extension (dae)", "dae"], hosts: ["bamis.gov.bd", "www.bamis.gov.bd"] },
+];
+
+const ADMIN_REVIEW_ATTESTATION = "ADMIN_SOURCE_REVIEW_CHECKLIST:v1";
+const REQUIRED_ADMIN_REVIEW_CHECKS = [
+  "sourceDocument",
+  "issuingAuthority",
+  "bulletinNumber",
+  "issueAndValidityDates",
+  "hazardAndAffectedArea",
+  "displayedContent",
+];
+
 /**
  * Validates that a hostname strictly belongs to an approved government host.
  * Strictly defends against lookalike domains (e.g. bmd.gov.bd.attacker.com, fakebmd.gov.bd)
@@ -84,12 +101,22 @@ export function isAuthenticGovernmentBulletin(w, referenceDate = new Date()) {
   if (!w || typeof w !== "object") return false;
 
   // 1. Explicit synthetic, demo, or inactive flags
-  if (w.isSynthetic === true || w.isDemo === true || w.isActive === false) {
+  if (w.isSynthetic === true || w.isDemo === true || w.isActive !== true) {
     return false;
   }
 
-  // 2. Explicit administrative verification requirement
-  if (w.verifiedByAdmin !== true) {
+  // 2. Verification must have an authenticated actor, timestamp, and review notes.
+  const verifiedAt = new Date(w.verifiedAt);
+  const verificationNotes = typeof w.verificationNotes === "string" ? w.verificationNotes.trim() : "";
+  if (
+    w.verifiedByAdmin !== true ||
+    !mongoose.isValidObjectId(w.verifiedByUserId) ||
+    w.verifiedAt == null ||
+    !Number.isFinite(verifiedAt.getTime()) ||
+    verifiedAt > referenceDate ||
+    verificationNotes.length < 30 ||
+    !verificationNotes.includes(ADMIN_REVIEW_ATTESTATION)
+  ) {
     return false;
   }
 
@@ -111,6 +138,11 @@ export function isAuthenticGovernmentBulletin(w, referenceDate = new Date()) {
   if (!isApprovedAuthority) {
     return false;
   }
+
+  const authorityGroup = AUTHORITY_SOURCE_HOSTS.find(group =>
+    group.authorities.includes(authority.toLowerCase())
+  );
+  if (!authorityGroup) return false;
 
   // 5. Source URL and hostname validation (Defends against external, lookalike, and forged hosts)
   const sourceUrl = (w.sourceUrl || "").trim();
@@ -134,13 +166,16 @@ export function isAuthenticGovernmentBulletin(w, referenceDate = new Date()) {
   }
 
   // Strictly check against exact approved government hostnames
-  if (!isTrustedGovernmentHost(parsedUrl.hostname)) {
+  if (!isTrustedGovernmentHost(parsedUrl.hostname) || !authorityGroup.hosts.includes(parsedUrl.hostname.toLowerCase())) {
     return false;
   }
 
-  // Reject open redirect query parameters or path patterns
-  const fullHref = parsedUrl.href.toLowerCase();
-  if (/(?:\/redirect|\/goto|\/out|\?to=|\?url=|\?dest=|\?target=|\?redirect=)/i.test(fullHref)) {
+  // Reject redirect-like paths and query parameters (URLSearchParams decodes names).
+  const redirectParameterNames = new Set(["to", "url", "dest", "target", "redirect", "next", "return", "continue"]);
+  if (
+    /\/(?:redirect|goto|out)(?:\/|$)/i.test(parsedUrl.pathname) ||
+    [...parsedUrl.searchParams.keys()].some(key => redirectParameterNames.has(key.toLowerCase()))
+  ) {
     return false;
   }
 
@@ -163,12 +198,19 @@ export function isAuthenticGovernmentBulletin(w, referenceDate = new Date()) {
     return false;
   }
 
-  // 6. Temporal validity check
-  if (w.validUntil) {
-    const validUntilDate = new Date(w.validUntil);
-    if (isNaN(validUntilDate.getTime()) || validUntilDate <= referenceDate) {
-      return false;
-    }
+  // 6. Required, coherent bulletin dates and visible content.
+  const issuedAt = new Date(w.issuedAt);
+  const validUntilDate = new Date(w.validUntil);
+  if (
+    !Number.isFinite(issuedAt.getTime()) ||
+    !Number.isFinite(validUntilDate.getTime()) ||
+    issuedAt > referenceDate ||
+    validUntilDate <= referenceDate ||
+    validUntilDate <= issuedAt ||
+    ![w.titleEn, w.titleBn, w.descriptionEn, w.descriptionBn].every(value => typeof value === "string" && value.trim()) ||
+    !((Array.isArray(w.affectedDivisions) && w.affectedDivisions.length > 0) || (Array.isArray(w.affectedDistricts) && w.affectedDistricts.length > 0))
+  ) {
+    return false;
   }
 
   return true;
@@ -200,10 +242,22 @@ export async function createOfficialWarningDraft({ data, adminUserId }) {
  * Verified and activates an official government warning bulletin.
  * Performs full provenance and authority verification before activating.
  */
-export async function verifyOfficialWarning({ warningId, adminUserId, notes = "" }) {
+export async function verifyOfficialWarning({ warningId, adminUserId, notes = "", verificationChecklist = {} }) {
   if (!adminUserId) {
     const err = new Error("Authenticated administrator required to verify official warnings");
     err.statusCode = 401;
+    throw err;
+  }
+
+  if (typeof notes !== "string" || notes.trim().length < 30) {
+    const err = new Error("Verification notes must record the source-document checks performed (at least 30 characters)");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!REQUIRED_ADMIN_REVIEW_CHECKS.every(check => verificationChecklist?.[check] === true)) {
+    const err = new Error("Every source document, issuer, bulletin number, date, hazard/area, and content check must be explicitly confirmed");
+    err.statusCode = 422;
     throw err;
   }
 
@@ -219,6 +273,9 @@ export async function verifyOfficialWarning({ warningId, adminUserId, notes = ""
     ...warning.toObject(),
     verifiedByAdmin: true,
     isActive: true,
+    verifiedByUserId: adminUserId,
+    verifiedAt: new Date(),
+    verificationNotes: `${ADMIN_REVIEW_ATTESTATION} ${REQUIRED_ADMIN_REVIEW_CHECKS.join(", ")} confirmed. ${notes.trim()}`,
   };
 
   if (!isAuthenticGovernmentBulletin(testCandidate)) {
@@ -231,7 +288,7 @@ export async function verifyOfficialWarning({ warningId, adminUserId, notes = ""
   warning.isActive = true;
   warning.verifiedByUserId = adminUserId;
   warning.verifiedAt = new Date();
-  warning.verificationNotes = notes;
+  warning.verificationNotes = testCandidate.verificationNotes;
 
   return await warning.save();
 }
@@ -294,6 +351,8 @@ export async function getActiveOfficialWarnings({ division = null, district = nu
     const query = {
       isActive: true,
       verifiedByAdmin: true,
+      verifiedByUserId: { $ne: null },
+      verifiedAt: { $lte: referenceDate },
       validUntil: { $gt: referenceDate },
     };
 
@@ -314,7 +373,7 @@ export async function getActiveOfficialWarnings({ division = null, district = nu
     return verifiedWarnings.map(w => ({
       id: w._id.toString(),
       bulletinNumber: w.bulletinNumber,
-      issuingAuthority: w.issuingAuthority || "Bangladesh Meteorological Department (BMD)",
+      issuingAuthority: w.issuingAuthority,
       sourceType: "OFFICIAL_GOVERNMENT_WARNING",
       isOfficialGovernmentWarning: true,
       hazardType: w.hazardType,
@@ -331,7 +390,7 @@ export async function getActiveOfficialWarnings({ division = null, district = nu
       issuedAt: w.issuedAt,
       validUntil: w.validUntil,
       sourceUrl: w.sourceUrl,
-      provenance: "Official Government Warning Bulletin (BMD / DDM)",
+      provenance: `Verified Government Warning Bulletin (${w.issuingAuthority})`,
     }));
   } catch (err) {
     console.error("Failed to query OfficialWarning:", err.message);

@@ -283,7 +283,12 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     const hasOfficialBulletins = (alertsData.officialWarningsCount > 0) ||
       (Array.isArray(alertsData.alerts) && alertsData.alerts.some(a => a.isGovernmentNotice));
     if (hasOfficialBulletins) {
-      sources.push("Bangladesh Meteorological Department (BMD) Official Bulletins");
+      const authorities = [...new Set((alertsData.alerts || [])
+        .filter(alert => alert.isGovernmentNotice && alert.issuingAuthority)
+        .map(alert => alert.issuingAuthority))];
+      sources.push(...(authorities.length
+        ? authorities.map(authority => `Verified government warning: ${authority}`)
+        : ["Verified government warnings"]));
     }
 
     const cur = forecastData.current;
@@ -306,14 +311,14 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
 
     if (isDataInsufficient) {
       if (isBangla) {
-        weatherSummary = `📍 **${locNameBn}-এর আবহাওয়া উপাত্ত:**\n` +
-          `⚠️ এই এলাকার জন্য পর্যাপ্ত আবহাওয়া পূর্বাভাস বা ঝুঁকি উপাত্ত বর্তমানে অনুপলব্ধ।\n` +
+        weatherSummary = `**${locNameBn}-এর আবহাওয়া উপাত্ত:**\n` +
+          `সতর্কতা: এই এলাকার জন্য পর্যাপ্ত আবহাওয়া পূর্বাভাস বা ঝুঁকি উপাত্ত বর্তমানে অনুপলব্ধ।\n` +
           `- সামগ্রিক কৃষি ঝুঁকি: উপাত্ত অপর্যাপ্ত (অজানা)\n` +
           `- পরিস্থিতি: প্রয়োজনীয় উপাত্তের অনুপস্থিতিতে আনুমানিক বা কাল্পনিক ঝুঁকি স্তর নির্ধারণ করা বিজ্ঞানসম্মত নয়।\n` +
           `- পরামর্শ: স্প্রে বা সেচের মতো স্পর্শকাতর কৃষিকাজ পরিচালনার আগে স্থানীয় কৃষি কর্মকর্তা বা বিশ্বস্ত আবহাওয়া পর্যবেক্ষকের পরামর্শ নিন।`;
       } else {
-        weatherSummary = `📍 **Weather Intelligence for ${locNameEn}:**\n` +
-          `⚠️ Sufficient weather forecast or agronomic risk observations are currently unavailable for this location.\n` +
+        weatherSummary = `**Weather Intelligence for ${locNameEn}:**\n` +
+          `Unavailable: Sufficient weather forecast or agronomic risk observations are currently unavailable for this location.\n` +
           `- Overall Agricultural Risk: DATA INSUFFICIENT (UNKNOWN)\n` +
           `- Status: Risk levels and operational safety cannot be safely evaluated without verified provider observations.\n` +
           `- Guidance: Please consult local agricultural extension officers before scheduling chemical spraying or harvesting.`;
@@ -342,44 +347,48 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       const windStrBn = hasWindMetric ? `${cur.maxWindSpeedKmH} কিমি/ঘণ্টা` : "উপাত্ত নেই";
 
       if (isBangla) {
-        weatherSummary = `📍 **${locNameBn}-এর আবহাওয়া পূর্বাভাস ও কৃষি সতর্কতা:**\n` +
+        weatherSummary = `**${locNameBn}-এর আবহাওয়া পূর্বাভাস ও কৃষি সতর্কতা:**\n` +
           `- বর্তমান অবস্থা: ${conditionStr} (সর্বোচ্চ: ${cur.temperatureMaxC}°সে, সর্বনিম্ন: ${cur.temperatureMinC}°সে)\n` +
           `- আজকের সম্ভাব্য বৃষ্টি: ${rainStrBn} (সম্ভাবনা: ${rainProbStrBn})\n` +
           `- বাতাসের গতি: ${windStrBn}\n` +
           `- সামগ্রিক কৃষি ঝুঁকি: ${riskLabelBn}\n`;
 
         if (alertCount > 0) {
-          weatherSummary += `\n⚠️ **সক্রিয় কৃষি সতর্কতা (${alertCount}টি):**\n`;
+          weatherSummary += `\n**সক্রিয় কৃষি সতর্কতা (${alertCount}টি):**\n`;
           alertsData.alerts.slice(0, 3).forEach((a, i) => {
-            const sourceBadge = a.isGovernmentNotice ? "[সরকারি বিএমডি বুলেটিন]" : "[পূর্বাভাসভিত্তিক কৃষি সতর্কতা]";
+            const sourceBadge = a.isGovernmentNotice
+              ? `[যাচাইকৃত সরকারি বুলেটিন: ${a.issuingAuthority || "সরকারি কর্তৃপক্ষ"}]`
+              : "[পূর্বাভাসভিত্তিক কৃষি সতর্কতা]";
             weatherSummary += `${i + 1}. ${sourceBadge} **${a.titleBn || a.title}**\n   পরামর্শ: ${a.adviceBn || a.advice}\n`;
           });
         } else {
-          weatherSummary += `\n✅ বর্তমান প্রাপ্ত ৭ দিনের পূর্বাভাসের ভিত্তিতে কোনো সক্রিয় উচ্চ বা তীব্র কৃষি আবহাওয়া সতর্কতা নেই।`;
+          weatherSummary += `\nবর্তমান প্রাপ্ত ৭ দিনের পূর্বাভাসের ভিত্তিতে কোনো সক্রিয় উচ্চ বা তীব্র কৃষি আবহাওয়া সতর্কতা নেই।`;
         }
 
         if (alertsData.precautions && alertsData.precautions.length > 0) {
-          weatherSummary += `\n🌾 **মাঠ পর্যায়ের কৃষিজ পরামর্শ:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
+          weatherSummary += `\n**মাঠ পর্যায়ের কৃষিজ পরামর্শ:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
         }
       } else {
-        weatherSummary = `📍 **Weather Forecast & Agricultural Risks for ${locNameEn}:**\n` +
+        weatherSummary = `**Weather Forecast & Agricultural Risks for ${locNameEn}:**\n` +
           `- Current Conditions: ${conditionStr} (Max: ${cur.temperatureMaxC}°C, Min: ${cur.temperatureMinC}°C)\n` +
           `- Expected Rain Today: ${rainStrEn} (Probability: ${rainProbStrEn})\n` +
           `- Peak Wind Speed: ${windStrEn}\n` +
           `- Overall Agricultural Risk: ${riskLabelEn}\n`;
 
         if (alertCount > 0) {
-          weatherSummary += `\n⚠️ **Active Weather & Risk Alerts (${alertCount}):**\n`;
+          weatherSummary += `\n**Active Weather & Risk Alerts (${alertCount}):**\n`;
           alertsData.alerts.slice(0, 3).forEach((a, i) => {
-            const sourceBadge = a.isGovernmentNotice ? "[Official BMD Warning]" : "[Forecast Risk Alert]";
+            const sourceBadge = a.isGovernmentNotice
+              ? `[Verified Government Warning: ${a.issuingAuthority || "Government authority"}]`
+              : "[Forecast Risk Alert]";
             weatherSummary += `${i + 1}. ${sourceBadge} **${a.title}**\n   Advice: ${a.advice}\n`;
           });
         } else {
-          weatherSummary += `\n✅ No active high or severe agricultural weather hazards indicated in the current 7-day forecast.`;
+          weatherSummary += `\nNo active high or severe agricultural weather hazards indicated in the current 7-day forecast.`;
         }
 
         if (alertsData.precautions && alertsData.precautions.length > 0) {
-          weatherSummary += `\n🌾 **Field Operational Guidance:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
+          weatherSummary += `\n**Field Operational Guidance:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
         }
       }
     }
@@ -389,7 +398,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       language: isBangla ? "bn" : "en",
       executedTools,
       sources,
-      dataDate: dataDate || (isDataInsufficient ? "Unavailable" : new Date().toISOString().slice(0, 10)),
+      dataDate: dataDate || null,
       dataQuality,
       provenance,
       limitations,
@@ -914,27 +923,33 @@ export class AssistantChatService {
             limitations.push("1–7 day deterministic NWP; extended days 8–16 have elevated uncertainty.");
           } else if (call.toolName === "getActiveWeatherAlerts") {
             sources.add("Agro-Meteorological Risk Engine");
-            if (res.officialWarningsCount > 0 || (Array.isArray(res.alerts) && res.alerts.some(a => a.isGovernmentNotice))) {
-              sources.add("Bangladesh Meteorological Department (BMD) Official Bulletins");
+            const issuingAuthorities = Array.isArray(res.alerts)
+              ? [...new Set(res.alerts.filter(alert => alert.isGovernmentNotice && alert.issuingAuthority).map(alert => alert.issuingAuthority))]
+              : [];
+            for (const authority of issuingAuthorities) {
+              sources.add(`${authority} Official Bulletins`);
             }
             provenance.push("BMD & DAE Meteorological Hazard Criteria");
             limitations.push("Alerts strictly distinguish official government bulletins from internal agro-weather risks.");
           } else if (call.toolName === "getAgriculturalRiskAssessment") {
             sources.add("Krishi Mama Agricultural Risk Engine");
-            if (Array.isArray(res.alerts) && res.alerts.some(a => a.isGovernmentNotice)) {
-              sources.add("Bangladesh Meteorological Department (BMD)");
+            const issuingAuthorities = Array.isArray(res.alerts)
+              ? [...new Set(res.alerts.filter(alert => alert.isGovernmentNotice && alert.issuingAuthority).map(alert => alert.issuingAuthority))]
+              : [];
+            for (const authority of issuingAuthorities) {
+              sources.add(`${authority} Official Bulletins`);
             }
             provenance.push("DAE / BRRI Agronomic Thresholds");
           } else if (call.toolName === "getWeeklyWeatherOutlook") {
             sources.add("Open-Meteo Seasonal Forecast API");
             provenance.push(res.source || "Open-Meteo Sub-seasonal Outlook");
             if (res.spatialResolution) limitations.push(res.spatialResolution);
-            if (!dataDate) dataDate = "Seasonal Projection Window";
+            if (!dataDate) dataDate = res.weeklyTendencies?.find(week => week.status === "AVAILABLE")?.startDate || null;
           } else if (call.toolName === "getSeasonalCropOutlook") {
             sources.add("Open-Meteo Seasonal Forecast API");
-            provenance.push(res.source || "Open-Meteo Seasonal Model Forecast");
+            provenance.push(res.source || "Open-Meteo Seasonal Forecast API");
             if (res.spatialResolution) limitations.push(res.spatialResolution);
-            if (!dataDate) dataDate = "Seasonal Projection Window";
+            if (!dataDate) dataDate = res.monthlyOutlooks?.find(month => month.status === "AVAILABLE")?.startDate || null;
           }
         }
 
@@ -942,7 +957,7 @@ export class AssistantChatService {
           answer: geminiResult.answer,
           language: /[\u0980-\u09FF]/.test(trimmedMessage) ? "bn" : "en",
           sources: Array.from(sources),
-          dataDate: dataDate || new Date().toISOString().slice(0, 10),
+          dataDate: dataDate || null,
           dataQuality,
           provenance: provenance.length > 0 ? Array.from(new Set(provenance)) : ["Krishi Mama Unified Intelligence Service"],
           limitations: limitations.length > 0 ? Array.from(new Set(limitations)) : ["Agricultural satellite and historical data subject to regional microclimates."],

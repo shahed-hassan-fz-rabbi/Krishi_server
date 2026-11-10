@@ -311,7 +311,7 @@ export const assistantTools = [
   {
     name: "getSeasonalCropOutlook",
     description:
-      "Retrieve coarse regional seasonal outlook for Months 1 to 3 ahead, including neutral rainfall threshold categories (low/moderate/elevated) and regional temperature trends. Note: numerical tercile probabilities are omitted due to absence of 30-year model climatology baselines.",
+      "Retrieve coarse regional outlook summaries for Months 1 to 3 ahead, including neutral fixed-range rainfall labels and temperature statistics from the returned model series. The requested daily response does not provide calibrated rainfall probabilities; unavailable values remain null.",
     parameters: {
       type: "OBJECT",
       properties: {

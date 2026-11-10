@@ -21,12 +21,21 @@ import { generateFarmLifecycleTimeline } from "../services/croplifecycle.service
 import { getFarmEnvironmentalIntelligence } from "../services/farmenvironment.service.js";
 import { generateActivitiesForFarm } from "../services/farmactivity.service.js";
 import { ownedFarmFilter } from "../security/farm-ownership.js";
+import { FarmNotificationService } from "../services/farmnotification.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const calendarsPath = path.resolve(__dirname, "../../data/crops/official_crop_calendars.json");
 
 let cachedCalendars = null;
+async function syncFarmNotifications(userId) {
+  try {
+    await FarmNotificationService.syncUserNotifications(userId);
+  } catch {
+    console.warn("[farm] Notification synchronization failed.");
+  }
+}
+
 function getOfficialCropCalendars() {
   if (cachedCalendars) return cachedCalendars;
   if (fs.existsSync(calendarsPath)) {
@@ -122,6 +131,7 @@ export async function createFarm(req, res, next) {
     } catch (actErr) {
       console.warn("[farm] Automatic activity generation warning:", actErr.message);
     }
+    await syncFarmNotifications(userId);
 
     return successResponse(res, 201, savedFarm, {
       message: "Farm created successfully",
@@ -468,6 +478,8 @@ export async function refreshFarmLifecycle(req, res, next) {
       farm.crop.currentStage = currentStageCode;
       await farm.save();
     }
+
+    await syncFarmNotifications(userId);
 
     return successResponse(res, 200, timelineResult.data, {
       message: "Farm lifecycle timeline refreshed successfully",

@@ -355,3 +355,53 @@ test("Assistant Weather Tools Executors return structured data without fabricati
   assert.ok(Array.isArray(seasonal.monthlyOutlooks));
   assert.ok(seasonal.monthlyOutlooks.length > 0);
 });
+
+test("weather assistant preserves null dates, names the verified authority, and avoids emoji decoration", async () => {
+  const originalConfigured = geminiAssistantClient.isConfigured;
+  const originalForecast = toolExecutors.getLocationWeatherForecast;
+  const originalAlerts = toolExecutors.getActiveWeatherAlerts;
+  geminiAssistantClient.isConfigured = () => false;
+  toolExecutors.getLocationWeatherForecast = async () => ({
+    location: { nameEn: "Chattogram", nameBn: "চট্টগ্রাম" },
+    current: {
+      date: null,
+      conditionEn: "Partly cloudy",
+      conditionBn: "আংশিক মেঘলা",
+      temperatureMaxC: 25,
+      temperatureMinC: 19,
+      todayRainExpectedMm: 0,
+      todayRainProbabilityPercent: 20,
+      maxWindSpeedKmH: 10,
+    },
+  });
+  toolExecutors.getActiveWeatherAlerts = async () => ({
+    overallRiskLevel: "MODERATE",
+    alertsCount: 1,
+    officialWarningsCount: 1,
+    alerts: [{
+      id: "verified_bamis_warning",
+      isGovernmentNotice: true,
+      issuingAuthority: "BAMIS",
+      title: "Agricultural weather notice",
+      titleBn: "কৃষি আবহাওয়া বিজ্ঞপ্তি",
+      advice: "Check the official source.",
+      adviceBn: "সরকারি সূত্র দেখুন।",
+    }],
+    precautions: [],
+  });
+
+  try {
+    const response = await assistantChatService.handleChat({
+      message: "Weather alert for Chattogram?",
+      district: "chattogram",
+    });
+    assert.equal(response.dataDate, null);
+    assert.ok(response.sources.some(source => source.includes("BAMIS")));
+    assert.match(response.answer, /Verified Government Warning: BAMIS/);
+    assert.doesNotMatch(response.answer, /\p{Extended_Pictographic}/u);
+  } finally {
+    geminiAssistantClient.isConfigured = originalConfigured;
+    toolExecutors.getLocationWeatherForecast = originalForecast;
+    toolExecutors.getActiveWeatherAlerts = originalAlerts;
+  }
+});

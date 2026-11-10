@@ -20,6 +20,15 @@ import {
   validateUpdateActivityInput,
 } from "../validators/farmactivity.validator.js";
 import { errorResponse, successResponse } from "../utils/response.js";
+import { FarmNotificationService } from "../services/farmnotification.service.js";
+
+async function syncFarmNotifications(userId) {
+  try {
+    await FarmNotificationService.syncUserNotifications(userId);
+  } catch {
+    console.warn("[farm-activity] Notification synchronization failed.");
+  }
+}
 
 /**
  * GET /api/v1/farms/:id/activities
@@ -95,6 +104,8 @@ export async function createFarmActivity(req, res, next) {
       return errorResponse(res, result.statusCode || 400, result.error, result.code);
     }
 
+    await syncFarmNotifications(userId);
+
     return successResponse(res, 201, result.data, {
       message: "Custom farm activity created successfully",
     });
@@ -128,6 +139,8 @@ export async function updateFarmActivity(req, res, next) {
       return errorResponse(res, result.statusCode || 400, result.error, result.code);
     }
 
+    await syncFarmNotifications(userId);
+
     return successResponse(res, 200, result.data, {
       message: "Farm activity updated successfully",
     });
@@ -156,6 +169,8 @@ export async function deleteFarmActivity(req, res, next) {
       return errorResponse(res, result.statusCode || 400, result.error, result.code);
     }
 
+    await syncFarmNotifications(userId);
+
     return successResponse(res, 200, result.data, {
       message: "Farm activity deleted successfully",
     });
@@ -181,6 +196,8 @@ export async function generateFarmActivities(req, res, next) {
     if (!result.success) {
       return errorResponse(res, result.statusCode || 400, result.error, result.code);
     }
+
+    await syncFarmNotifications(userId);
 
     return successResponse(res, 200, result.data, {
       message: `Generated ${result.data.generatedCount} new activities (${result.data.existingCount} already present)`,

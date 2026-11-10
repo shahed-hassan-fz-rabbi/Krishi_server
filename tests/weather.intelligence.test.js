@@ -151,6 +151,7 @@ test("getSeasonalOutlook - retrieves 6-week subseasonal and 3-month seasonal blo
   assert.ok(outlook.location);
   assert.equal(outlook.subSeasonalWeeklyOutlook.length, 6);
   assert.equal(outlook.seasonalMonthlyOutlook.length, 3);
-  assert.ok(outlook.meta.sourceSystem.includes("Open-Meteo Seasonal"));
-  assert.equal(outlook.seasonalMonthlyOutlook[0].tercileProbabilities.isOmitted, true);
+  assert.ok(outlook.meta.sourceSystem.includes("Open-Meteo"));
+  assert.equal(outlook.meta.modelSelection, "ecmwf_seasonal_seamless");
+  assert.equal(outlook.seasonalMonthlyOutlook[0].probabilityData.isOmitted, true);
 });

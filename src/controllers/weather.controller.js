@@ -18,6 +18,15 @@ import { Farm } from "../models/farm.model.js";
 import { FarmNotification } from "../models/farmnotification.model.js";
 import { resolveLocationCoordinates } from "../config/weather.config.js";
 
+export function sumCompleteRainfall(days, requiredDayCount = 7) {
+  if (!Array.isArray(days) || days.length < requiredDayCount) return null;
+  const requiredDays = days.slice(0, requiredDayCount);
+  if (!requiredDays.every(day => typeof day?.precipitationSumMm === "number" && Number.isFinite(day.precipitationSumMm))) {
+    return null;
+  }
+  return Number(requiredDays.reduce((total, day) => total + day.precipitationSumMm, 0).toFixed(1));
+}
+
 /**
  * Resolves location parameter from query, farm context, or division/district
  */
@@ -191,6 +200,9 @@ export async function getAlerts(req, res) {
                     severity: alert.severity,
                     metric: alert.metric || null,
                     sourceType: alert.isGovernmentNotice ? "OFFICIAL_GOVERNMENT_WARNING" : "METEOROLOGICAL_FORECAST",
+                    issuingAuthority: alert.issuingAuthority || null,
+                    bulletinNumber: alert.bulletinNumber || null,
+                    sourceUrl: alert.sourceUrl || null,
                     validUntil: alert.validUntil || null,
                   },
                 },
@@ -372,11 +384,7 @@ export async function getCropPlanning(req, res) {
     const shortRangeDays = forecast?.shortRangeForecast || [];
     const hasFull7Days = shortRangeDays.length >= 7;
     const first7Days = hasFull7Days ? shortRangeDays.slice(0, 7) : [];
-
-    const hasFull7DaysRain = hasFull7Days && first7Days.every(d => typeof d.precipitationSumMm === "number" && Number.isFinite(d.precipitationSumMm));
-    const sevenDayRainTotalMm = hasFull7DaysRain
-      ? Number(first7Days.reduce((acc, d) => acc + d.precipitationSumMm, 0).toFixed(1))
-      : null;
+    const sevenDayRainTotalMm = sumCompleteRainfall(shortRangeDays);
 
     const hasFull7DaysMaxTemp = hasFull7Days && first7Days.every(d => typeof d.temperatureMaxC === "number" && Number.isFinite(d.temperatureMaxC));
     const sevenDayMaxTemp = hasFull7DaysMaxTemp
@@ -412,13 +420,19 @@ export async function getCropPlanning(req, res) {
           seasonalModel: outlook?.meta?.sourceSystem || "Open-Meteo Seasonal Model Forecast",
           spatialResolution: outlook?.meta?.spatialResolution || "Coarse regional grid (~36 km)",
           officialAdvisories: officialWarnings.length > 0
-            ? "Bangladesh Meteorological Department (BMD) Active Bulletins"
-            : "No Active BMD Bulletins",
+            ? [...new Set(officialWarnings.map(warning => warning.issuingAuthority))].join(", ")
+            : "No verified government bulletins returned",
           officialBulletinsActiveCount: officialWarnings.length,
           agronomicRules: "BRRI & DAE Crop Production Standards",
-          fetchTimestamp: new Date().toISOString(),
-          isForecastCached: forecast?.meta?.isCached || false,
-          isSeasonalCached: outlook?.meta?.isCached || false,
+          responseGeneratedAt: new Date().toISOString(),
+          forecastFetchTimestamp: forecast?.meta?.fetchTimestamp || null,
+          seasonalFetchTimestamp: outlook?.meta?.fetchTimestamp || null,
+          forecastDataStatus: forecast?.meta?.dataStatus || "AVAILABLE",
+          seasonalDataStatus: outlook?.meta?.dataStatus || "AVAILABLE",
+          isForecastCached: Boolean(forecast?.meta?.isCached || forecast?.meta?.isStale),
+          isSeasonalCached: Boolean(outlook?.meta?.isCached || outlook?.meta?.isStale),
+          isForecastStale: Boolean(forecast?.meta?.isStale),
+          isSeasonalStale: Boolean(outlook?.meta?.isStale),
         },
       },
     });
@@ -462,11 +476,12 @@ export async function createAdminWarningDraft(req, res) {
 export async function verifyAdminWarning(req, res) {
   try {
     const { id } = req.params;
-    const { notes } = req.body || {};
+    const { notes, verificationChecklist } = req.body || {};
     const warning = await verifyOfficialWarning({
       warningId: id,
       adminUserId: req.user?._id,
       notes,
+      verificationChecklist,
     });
     return res.status(200).json({
       success: true,

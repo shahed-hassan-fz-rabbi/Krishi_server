@@ -42,6 +42,7 @@ export async function getLiveForecast({ latitude, longitude, locationIdentifier 
       meta: {
         ...cached.data.meta,
         isCached: true,
+        dataStatus: "AVAILABLE",
         cachedUntil: new Date(cached.expiresAt).toISOString(),
       },
     };
@@ -173,6 +174,7 @@ export async function getLiveForecast({ latitude, longitude, locationIdentifier 
         timezoneAbbreviation: json.timezone_abbreviation || "GMT+6",
         elevationMeters: json.elevation,
         isCached: false,
+        dataStatus: "AVAILABLE",
         cachedUntil: new Date(now + WEATHER_CONFIG.openMeteo.forecastCacheTtlMs).toISOString(),
       },
     };
@@ -193,6 +195,7 @@ export async function getLiveForecast({ latitude, longitude, locationIdentifier 
         ...cached.data,
         meta: {
           ...cached.data.meta,
+          isCached: true,
           isStale: true,
           staleNotice: "Live Open-Meteo connection timed out. Showing last verified cached forecast.",
         },

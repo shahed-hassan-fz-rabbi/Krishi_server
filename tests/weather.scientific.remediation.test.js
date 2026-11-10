@@ -1,14 +1,43 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import mongoose from "mongoose";
 
 import { assessAgriculturalRisks } from "../src/services/weather/risk.engine.js";
 import {
   seedInitialOfficialBulletins,
   getActiveOfficialWarnings,
   getHistoricalOfficialWarnings,
+  isAuthenticGovernmentBulletin,
+  verifyOfficialWarning,
 } from "../src/services/weather/warning.service.js";
 import { getSeasonalOutlook } from "../src/services/weather/seasonal.service.js";
 import { getLiveForecast } from "../src/services/weather/forecast.service.js";
+import OfficialWarning from "../src/models/officialwarning.model.js";
+import { sumCompleteRainfall } from "../src/controllers/weather.controller.js";
+
+function validWarningFixture(overrides = {}) {
+  const now = new Date();
+  return {
+    bulletinNumber: "BMD-WARN-2026-85",
+    issuingAuthority: "Bangladesh Meteorological Department (BMD)",
+    hazardType: "HEAVY_RAIN",
+    severity: "WARNING",
+    titleEn: "Heavy rainfall warning",
+    titleBn: "ভারী বৃষ্টির সতর্কতা",
+    descriptionEn: "Heavy rainfall is expected in the affected area.",
+    descriptionBn: "আক্রান্ত এলাকায় ভারী বৃষ্টি হতে পারে।",
+    affectedDivisions: ["Chattogram"],
+    issuedAt: new Date(now.getTime() - 60 * 60 * 1000),
+    validUntil: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+    sourceUrl: "https://bmd.gov.bd/files/bulletin/2026/adv-85.pdf",
+    isActive: true,
+    verifiedByAdmin: true,
+    verifiedByUserId: new mongoose.Types.ObjectId(),
+    verifiedAt: now,
+    verificationNotes: "ADMIN_SOURCE_REVIEW_CHECKLIST:v1 sourceDocument issuingAuthority bulletinNumber issueAndValidityDates hazardAndAffectedArea displayedContent confirmed. Reviewed the source document.",
+    ...overrides,
+  };
+}
 
 test("Remediation 1: assessAgriculturalRisks returns DATA_INSUFFICIENT when forecast is missing", () => {
   const result = assessAgriculturalRisks({ forecast: null });
@@ -105,36 +134,38 @@ test("Remediation 5: getActiveOfficialWarnings returns empty array when DB is of
   assert.equal(warnings.length, 0);
 });
 
-test("Remediation 6: Seasonal Outlook — tercile probabilities are omitted, 6 weeks exposed, regional scale disclosed", async () => {
-  // Inject mock seasonal response with ensemble pairs
-  const mockTimes = Array.from({ length: 90 }, (_, i) => {
-    const d = new Date(2026, 3, 1 + i);
-    return d.toISOString().slice(0, 10);
-  });
-
-  const mockDaily = {
-    time: mockTimes,
-    temperature_2m_mean_member01: mockTimes.map(() => 28.5),
-    precipitation_sum_member01: mockTimes.map(() => 5.0),
-    temperature_2m_mean_member02: mockTimes.map(() => 29.0),
-    precipitation_sum_member02: mockTimes.map(() => 10.0),
-  };
-
-  // Check week grouping logic
-  const totalDays = mockTimes.length;
-  const maxWeeks = Math.min(6, Math.floor(totalDays / 7));
-  assert.equal(maxWeeks, 6, "Must group up to 6 complete weeks");
-
-  // Verify tercile probability omission policy
-  const mockMonthRainTotals = [40, 50, 60, 70];
-  const tercileProbabilities = {
-    isOmitted: true,
-    reason: "Numerical tercile probabilities are omitted because 30-year model climatology thresholds are not provided by this endpoint.",
-  };
-
-  assert.equal(tercileProbabilities.isOmitted, true);
-  assert.ok(!("aboveNormalPercent" in tercileProbabilities), "Must not report aboveNormalPercent");
-  assert.ok(!("belowNormalPercent" in tercileProbabilities), "Must not report belowNormalPercent");
+test("seasonal service exposes response-backed series metadata and no calibrated probability claims", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => {
+      const time = Array.from({ length: 90 }, (_, i) => new Date(Date.UTC(2026, 3, i + 1)).toISOString().slice(0, 10));
+      return {
+        ok: true,
+        json: async () => ({
+          daily: {
+            time,
+            temperature_2m_mean_member02: time.map(() => 28.5),
+            precipitation_sum_member02: time.map(() => 5),
+            temperature_2m_mean_member04: time.map(() => 29),
+            precipitation_sum_member04: time.map(() => 10),
+          },
+        }),
+      };
+    };
+    const outlook = await getSeasonalOutlook({ latitude: 24.891, longitude: 89.891 });
+    assert.equal(outlook.meta.returnedSeriesCount, 2);
+    assert.equal(outlook.meta.dataStatus, "AVAILABLE");
+    assert.equal(outlook.subSeasonalWeeklyOutlook.length, 6);
+    assert.equal(outlook.seasonalMonthlyOutlook.length, 3);
+    assert.equal(outlook.seasonalMonthlyOutlook[0].probabilityData.isOmitted, true);
+    assert.equal(outlook.seasonalMonthlyOutlook[0].rainfallMeanMm, 225);
+    assert.equal(outlook.seasonalMonthlyOutlook[0].rainfallThresholdStatusEn, "Elevated Rainfall Threshold (>60 mm)");
+    assert.equal(outlook.seasonalMonthlyOutlook[0].rainfallThresholdStatusBn, "অধিক বৃষ্টিপাতের সীমা (>৬০ মিমি)");
+    assert.equal("tercileProbabilities" in outlook.seasonalMonthlyOutlook[0], false);
+    assert.equal("ensembleRainfallMeanMm" in outlook.seasonalMonthlyOutlook[0], false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("Remediation 7: Chatbot deterministic fallback on DATA_INSUFFICIENT does not claim low risk or clear skies", () => {
@@ -237,51 +268,33 @@ test("Phase 7.0.4 Remediation: isAuthenticGovernmentBulletin quarantines synthet
   assert.equal(isAuthenticGovernmentBulletin(syntheticFlagged), false, "Must reject isSynthetic: true");
 
   // Authentic government bulletin with traceable PDF path and recognized issuing authority
-  const authentic = {
-    bulletinNumber: "BMD-WARN-2026-05",
-    issuingAuthority: "Bangladesh Meteorological Department (BMD)",
-    sourceUrl: "https://bmd.gov.bd/files/bulletin/2026/adv-05.pdf",
-    isActive: true,
-    verifiedByAdmin: true,
-  };
+  const authentic = validWarningFixture({ bulletinNumber: "BMD-WARN-2026-05" });
   assert.equal(isAuthenticGovernmentBulletin(authentic), true, "Must accept authentic traceable bulletin");
 });
 
-test("Phase 7.0.4 Remediation: Seasonal provenance dynamically labels model and supplies 6 explicit week slots", () => {
-  // Deterministic single member
-  const singleMemberCount = 1;
-  const singleSource = singleMemberCount > 1
-    ? `Open-Meteo Seasonal Multi-Member Ensemble (${singleMemberCount} Members)`
-    : "Open-Meteo Seasonal Deterministic Run (Single Series / Non-Ensemble)";
-  assert.equal(singleSource, "Open-Meteo Seasonal Deterministic Run (Single Series / Non-Ensemble)");
-  assert.ok(!singleSource.includes("50 members"));
-
-  // 50-member ensemble
-  const multiMemberCount = 50;
-  const multiSource = multiMemberCount > 1
-    ? `Open-Meteo Seasonal Multi-Member Ensemble (${multiMemberCount} Members)`
-    : "Open-Meteo Seasonal Deterministic Run (Single Series / Non-Ensemble)";
-  assert.equal(multiSource, "Open-Meteo Seasonal Multi-Member Ensemble (50 Members)");
-
-  // 6-week array guarantee with unavailable placeholders
-  const totalDays = 28; // only 4 weeks available
-  const maxWeeksAvailable = Math.floor(totalDays / 7);
-  const weeks = [];
-  for (let w = 0; w < 6; w++) {
-    if (w < maxWeeksAvailable) {
-      weeks.push({ weekNumber: w + 1, isAvailable: true, status: "AVAILABLE" });
-    } else {
-      weeks.push({ weekNumber: w + 1, isAvailable: false, status: "DATA_UNAVAILABLE" });
-    }
+test("seasonal model metadata and 6-week slots come from the production service", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url) => {
+      assert.equal(new URL(url).searchParams.get("models"), "ecmwf_seasonal_seamless");
+      const time = Array.from({ length: 90 }, (_, i) => new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10));
+      const daily = { time };
+      for (const member of ["member02", "member04"]) {
+        daily[`temperature_2m_mean_${member}`] = time.map(() => 25);
+        daily[`precipitation_sum_${member}`] = time.map(() => 4);
+      }
+      return { ok: true, json: async () => ({ daily }) };
+    };
+    const outlook = await getSeasonalOutlook({ latitude: 25.123, longitude: 89.123 });
+    assert.equal(outlook.meta.modelSelection, "ecmwf_seasonal_seamless");
+    assert.equal(outlook.meta.returnedSeriesCount, 2);
+    assert.match(outlook.meta.sourceSystem, /2 paired member series returned/);
+    assert.equal(outlook.subSeasonalWeeklyOutlook.length, 6);
+    assert.equal(outlook.seasonalMonthlyOutlook[0].usableSeriesCount, 2);
+    assert.equal(outlook.seasonalMonthlyOutlook[0].rainfallMeanMm, 120);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
-
-  assert.equal(weeks.length, 6, "Must always produce 6 week slots");
-  assert.equal(weeks[0].isAvailable, true);
-  assert.equal(weeks[3].isAvailable, true);
-  assert.equal(weeks[4].isAvailable, false);
-  assert.equal(weeks[4].status, "DATA_UNAVAILABLE");
-  assert.equal(weeks[5].isAvailable, false);
-  assert.equal(weeks[5].status, "DATA_UNAVAILABLE");
 });
 
 test("Phase 7.0.5 Remediation Blocker 1: Official warning trust policy rejects lookalike domains, unverified, and external URLs", async () => {
@@ -392,84 +405,22 @@ test("Phase 7.0.5 Remediation Blocker 1: Official warning trust policy rejects l
 
   // 8. Authentic verified BMD bulletin
   assert.equal(
-    isAuthenticGovernmentBulletin({
-      bulletinNumber: "BMD-ADV-2026-11",
-      issuingAuthority: "Bangladesh Meteorological Department (BMD)",
-      sourceUrl: "https://bmd.gov.bd/files/bulletin/2026/adv-11.pdf",
-      isActive: true,
-      verifiedByAdmin: true,
-      validUntil: validFutureDate,
-    }),
+    isAuthenticGovernmentBulletin(validWarningFixture({ bulletinNumber: "BMD-ADV-2026-11", validUntil: validFutureDate })),
     true,
     "Must accept authentic verified BMD bulletin"
   );
 
   // 9. Authentic verified BAMIS/DAE bulletin
   assert.equal(
-    isAuthenticGovernmentBulletin({
+    isAuthenticGovernmentBulletin(validWarningFixture({
       bulletinNumber: "BAMIS-AGRI-2026-03",
       issuingAuthority: "BAMIS / Department of Agricultural Extension (DAE)",
       sourceUrl: "https://bamis.gov.bd/advisory/2026/agri-bulletin-03.pdf",
-      isActive: true,
-      verifiedByAdmin: true,
       validUntil: validFutureDate,
-    }),
+    })),
     true,
     "Must accept authentic verified BAMIS bulletin"
   );
-});
-
-test("Phase 7.0.5 Remediation Blocker 2: Seasonal model provenance distinguishes deterministic from ensemble", () => {
-  // Deterministic run: 1 member
-  const countSingle = 1;
-  const sysSingle = countSingle > 1
-    ? `Open-Meteo Seasonal Multi-Member Ensemble (${countSingle} Members)`
-    : "Open-Meteo Seasonal Deterministic Run (Single Series / Non-Ensemble)";
-  assert.equal(sysSingle, "Open-Meteo Seasonal Deterministic Run (Single Series / Non-Ensemble)");
-  assert.ok(!sysSingle.includes("50"));
-  assert.ok(!sysSingle.includes("ECMWF SEAS5 (1 Ensemble Members)"));
-
-  // Ensemble run: 30 members
-  const countMulti = 30;
-  const sysMulti = countMulti > 1
-    ? `Open-Meteo Seasonal Multi-Member Ensemble (${countMulti} Members)`
-    : "Open-Meteo Seasonal Deterministic Run (Single Series / Non-Ensemble)";
-  assert.equal(sysMulti, "Open-Meteo Seasonal Multi-Member Ensemble (30 Members)");
-});
-
-test("Phase 7.0.5 Remediation Blocker 3: Monthly rainfall thresholds do not claim climatological normal", () => {
-  const getThresholdLabels = (meanRain) => {
-    const thresholdEn =
-      meanRain > 60
-        ? "Elevated Rainfall Threshold (>60 mm)"
-        : meanRain < 10
-        ? "Low Rainfall Threshold (<10 mm)"
-        : "Moderate Rainfall Range (10–60 mm)";
-    const thresholdBn =
-      meanRain > 60
-        ? "অধিক বৃষ্টিপাতের সীমা (>৬০ মিমি)"
-        : meanRain < 10
-        ? "স্বল্প বৃষ্টিপাতের সীমা (<১০ মিমি)"
-        : "মাঝারি বৃষ্টিপাতের সীমা (১০–৬০ মিমি)";
-    return { thresholdEn, thresholdBn };
-  };
-
-  // Test low threshold (< 10 mm)
-  const low = getThresholdLabels(5.2);
-  assert.equal(low.thresholdEn, "Low Rainfall Threshold (<10 mm)");
-  assert.equal(low.thresholdBn, "স্বল্প বৃষ্টিপাতের সীমা (<১০ মিমি)");
-
-  // Test moderate range (10–60 mm) — MUST NOT claim "Normal Regional Seasonal Tendency"
-  const mod = getThresholdLabels(35.0);
-  assert.equal(mod.thresholdEn, "Moderate Rainfall Range (10–60 mm)");
-  assert.equal(mod.thresholdBn, "মাঝারি বৃষ্টিপাতের সীমা (১০–৬০ মিমি)");
-  assert.ok(!mod.thresholdEn.includes("Normal"));
-  assert.ok(!mod.thresholdBn.includes("স্বাভাবিক"));
-
-  // Test elevated threshold (> 60 mm)
-  const elevated = getThresholdLabels(85.5);
-  assert.equal(elevated.thresholdEn, "Elevated Rainfall Threshold (>60 mm)");
-  assert.equal(elevated.thresholdBn, "অধিক বৃষ্টিপাতের সীমা (>৬০ মিমি)");
 });
 
 test("Phase 7.0.5 Remediation Blocker 4: Forecast daily values preserve null for unobserved parameters", () => {
@@ -559,88 +510,84 @@ test("Phase 8.0 Blocker A: Official warning trust policy rejects HTTP, userinfo,
 
   // 6. Valid authentic BMD bulletin with strict HTTPS and approved host
   assert.equal(
-    isAuthenticGovernmentBulletin({
-      bulletinNumber: "BMD-WARN-2026-85",
-      issuingAuthority: "Bangladesh Meteorological Department (BMD)",
-      sourceUrl: "https://bmd.gov.bd/files/bulletin/2026/adv-85.pdf",
-      isActive: true,
-      verifiedByAdmin: true,
-      validUntil: validFutureDate,
-    }),
+    isAuthenticGovernmentBulletin(validWarningFixture({ validUntil: validFutureDate })),
     true,
-    "Must accept valid authentic bulletin"
+    "Must accept bulletin with authenticated review trail and matching source authority"
   );
 });
 
-test("Phase 8.0 Blocker B & C: Seasonal service missing-month runtime does not throw ReferenceError", async () => {
-  // Test month block unavailable handling where month has no complete series
-  const daysInMonthBlock = 30;
-  const totalDays = 90;
-  const maxMonths = 3;
+test("official warning publication fails closed without an authenticated verification trail", async () => {
+  const valid = validWarningFixture();
+  assert.equal(isAuthenticGovernmentBulletin({ ...valid, verifiedByUserId: null }), false);
+  assert.equal(isAuthenticGovernmentBulletin({ ...valid, verifiedAt: null }), false);
+  assert.equal(isAuthenticGovernmentBulletin({ ...valid, verificationNotes: "reviewed" }), false);
+  assert.equal(isAuthenticGovernmentBulletin({ ...valid, sourceUrl: "https://bamis.gov.bd/files/bulletin/2026/adv.pdf" }), false);
 
-  const times = Array.from({ length: 90 }, (_, i) => {
-    const d = new Date(2026, 3, 1 + i);
-    return d.toISOString().slice(0, 10);
-  });
-
-  const monthlyOutlooks = [];
-
-  for (let mIdx = 0; mIdx < 3; mIdx++) {
-    const startIndex = mIdx * daysInMonthBlock;
-    const endIndex = Math.min(startIndex + daysInMonthBlock - 1, totalDays - 1);
-    const startDate = times[startIndex];
-    const endDate = times[endIndex];
-
-    // Compute month names immediately
-    const dateObj = new Date(startDate);
-    const monthNameEn = dateObj.toLocaleString("en-US", { month: "long", year: "numeric" });
-    const monthNameBn = dateObj.toLocaleString("bn-BD", { month: "long", year: "numeric" });
-
-    // Simulate empty monthRainTotals (Codex's probe)
-    const monthRainTotals = [];
-
-    if (!monthRainTotals.length) {
-      monthlyOutlooks.push({
-        monthIndex: mIdx + 1,
-        windowLabelEn: `30-Day Outlook Block ${mIdx + 1} (~${monthNameEn})`,
-        windowLabelBn: `৩০-দিনের দৃষ্টিভঙ্গি ব্লক ${mIdx + 1} (~${monthNameBn})`,
-        monthNameEn,
-        monthNameBn,
-        startDate,
-        endDate,
-        isAvailable: false,
-        status: "DATA_UNAVAILABLE",
-        usableEnsembleMembers: 0,
-        ensembleRainfallMeanMm: null,
-        ensembleRainfallMedianMm: null,
-      });
-      continue;
-    }
+  const adminUserId = new mongoose.Types.ObjectId();
+  const record = validWarningFixture({ verifiedByAdmin: false, verifiedByUserId: null, verifiedAt: null, verificationNotes: "", isActive: false });
+  const warning = {
+    ...record,
+    toObject() { return { ...record }; },
+    async save() { return this; },
+  };
+  const originalFindById = OfficialWarning.findById;
+  const verificationChecklist = {
+    sourceDocument: true,
+    issuingAuthority: true,
+    bulletinNumber: true,
+    issueAndValidityDates: true,
+    hazardAndAffectedArea: true,
+    displayedContent: true,
+  };
+  try {
+    OfficialWarning.findById = async () => warning;
+    await assert.rejects(verifyOfficialWarning({ warningId: "test", adminUserId, notes: "reviewed" }), error => error.statusCode === 400);
+    await assert.rejects(verifyOfficialWarning({
+      warningId: "test",
+      adminUserId,
+      notes: "Reviewed source document number, issue date, hazard, affected area, and displayed content.",
+    }), error => error.statusCode === 422);
+    const verified = await verifyOfficialWarning({
+      warningId: "test",
+      adminUserId,
+      notes: "Reviewed source document number, issue date, hazard, affected area, and displayed content.",
+      verificationChecklist,
+    });
+    assert.equal(verified.verifiedByAdmin, true);
+    assert.equal(verified.isActive, true);
+    assert.equal(String(verified.verifiedByUserId), String(adminUserId));
+    assert.ok(verified.verifiedAt instanceof Date);
+    assert.equal(isAuthenticGovernmentBulletin(verified), true);
+  } finally {
+    OfficialWarning.findById = originalFindById;
   }
+});
 
-  assert.equal(monthlyOutlooks.length, 3);
-  assert.equal(monthlyOutlooks[0].isAvailable, false);
-  assert.equal(monthlyOutlooks[0].status, "DATA_UNAVAILABLE");
-  assert.ok(monthlyOutlooks[0].windowLabelEn.includes("30-Day Outlook Block 1"));
-  assert.ok(monthlyOutlooks[0].monthNameEn.length > 0);
+test("published warning provenance preserves its verified issuing authority", async () => {
+  const originalReadyState = mongoose.connection.readyState;
+  const originalFind = OfficialWarning.find;
+  const bamISWarning = new OfficialWarning(validWarningFixture({
+    issuingAuthority: "BAMIS",
+    sourceUrl: "https://bamis.gov.bd/files/bulletin/2026/adv-85.pdf",
+  }));
+  try {
+    mongoose.connection.readyState = 1;
+    OfficialWarning.find = () => ({
+      sort() { return this; },
+      async lean() { return [bamISWarning]; },
+    });
+    const published = await getActiveOfficialWarnings({ division: "Chattogram" });
+    assert.equal(published.length, 1);
+    assert.equal(published[0].issuingAuthority, "BAMIS");
+    assert.equal(published[0].provenance, "Verified Government Warning Bulletin (BAMIS)");
+  } finally {
+    mongoose.connection.readyState = originalReadyState;
+    OfficialWarning.find = originalFind;
+  }
 });
 
 test("Phase 8.0 Blocker C: Seven-day rainfall calculation preserves null when any day is missing/non-finite", () => {
-  const calculateSevenDayRain = (shortRangeForecast) => {
-    const shortRangeDays = shortRangeForecast || [];
-    const hasFull7Days = shortRangeDays.length >= 7;
-    const first7Days = hasFull7Days ? shortRangeDays.slice(0, 7) : [];
-
-    const hasFull7DaysRain =
-      hasFull7Days &&
-      first7Days.every(
-        (d) => typeof d.precipitationSumMm === "number" && Number.isFinite(d.precipitationSumMm)
-      );
-
-    return hasFull7DaysRain
-      ? Number(first7Days.reduce((acc, d) => acc + d.precipitationSumMm, 0).toFixed(1))
-      : null;
-  };
+  const calculateSevenDayRain = sumCompleteRainfall;
 
   // Case 1: Incomplete forecast (only 5 days) -> null
   assert.equal(

@@ -73,21 +73,50 @@ test("forecast service accepts complete provider data and rejects missing measur
 test("seasonal service rejects incomplete data instead of substituting zeros or default temperatures", async () => {
   const originalFetch = globalThis.fetch;
   try {
-    globalThis.fetch = async () => jsonResponse(validSeasonalBody());
+    let requestedModel;
+    globalThis.fetch = async input => {
+      requestedModel = new URL(input).searchParams.get("models");
+      return jsonResponse(validSeasonalBody());
+    };
     const outlook = await getSeasonalOutlook({ latitude: 20.021, longitude: 89.021 });
+    assert.equal(requestedModel, "ecmwf_seasonal_seamless");
     assert.equal(outlook.subSeasonalWeeklyOutlook.length, 6);
     assert.equal(outlook.seasonalMonthlyOutlook.length, 3);
     assert.equal(outlook.subSeasonalWeeklyOutlook[0].expectedRainfallMeanMm, 7);
+    assert.equal(outlook.meta.seriesType, "SINGLE_DETERMINISTIC_SERIES");
+    assert.doesNotMatch(outlook.meta.sourceSystem, /ensemble/i);
+    assert.equal(outlook.seasonalMonthlyOutlook[0].rainfallMeanMm, 30);
 
     globalThis.fetch = async () => {
       const body = validSeasonalBody();
       body.daily.precipitation_sum[2] = null;
       return jsonResponse(body);
     };
-    await assert.rejects(
-      getSeasonalOutlook({ latitude: 20.022, longitude: 89.022 }),
-      error => error.statusCode === 502 && /no complete values for week 1/.test(error.message)
-    );
+    const incomplete = await getSeasonalOutlook({ latitude: 20.022, longitude: 89.022 });
+    assert.equal(incomplete.subSeasonalWeeklyOutlook[0].status, "DATA_UNAVAILABLE");
+    assert.equal(incomplete.subSeasonalWeeklyOutlook[0].expectedRainfallMeanMm, null);
+    assert.equal(incomplete.seasonalMonthlyOutlook[0].status, "DATA_UNAVAILABLE");
+    assert.equal(incomplete.seasonalMonthlyOutlook[0].rainfallMeanMm, null);
+
+    globalThis.fetch = async () => {
+      const { daily } = validSeasonalBody();
+      return jsonResponse({ daily: { time: daily.time } });
+    };
+    const absent = await getSeasonalOutlook({ latitude: 20.023, longitude: 89.023 });
+    assert.equal(absent.meta.dataStatus, "DATA_UNAVAILABLE");
+    assert.ok(absent.subSeasonalWeeklyOutlook.every(week => week.expectedRainfallMeanMm === null));
+    assert.ok(absent.seasonalMonthlyOutlook.every(month => month.rainfallMeanMm === null));
+
+    globalThis.fetch = async () => {
+      const body = validSeasonalBody();
+      body.daily.precipitation_sum[2] = -0.1;
+      return jsonResponse(body);
+    };
+    const negativeRainfall = await getSeasonalOutlook({ latitude: 20.024, longitude: 89.024 });
+    assert.equal(negativeRainfall.subSeasonalWeeklyOutlook[0].status, "DATA_UNAVAILABLE");
+    assert.equal(negativeRainfall.subSeasonalWeeklyOutlook[0].expectedRainfallMeanMm, null);
+    assert.equal(negativeRainfall.seasonalMonthlyOutlook[0].status, "DATA_UNAVAILABLE");
+    assert.equal(negativeRainfall.seasonalMonthlyOutlook[0].rainfallRangeMm.min, null);
   } finally {
     globalThis.fetch = originalFetch;
   }
