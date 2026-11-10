@@ -146,7 +146,7 @@ export function evaluateCropEligibility({
     }
 
     // Drainage alert
-    if (drainage === "waterlogged" && crop.cropId === "mustard") {
+    if (["poor", "waterlogged"].includes(drainage) && crop.cropId === "mustard") {
       suitabilityCategory = "potential";
       constraints.push("Waterlogged drainage is detrimental to mustard emergence. Raised beds or drainage ditches required.");
     }

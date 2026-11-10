@@ -6,6 +6,7 @@
 
 import { DISTRICTS } from "../config/climate.config.js";
 import { getUpazilasForDistrict } from "../config/upazilas.config.js";
+import { ownershipPayloadErrors } from "../security/farm-ownership.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 const VALID_CROP_CODES = new Set(["monsoon_aman", "boro_rice", "aus_rice", "mustard"]);
@@ -21,7 +22,7 @@ const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
  * Validates manual farm creation payload.
  */
 export function validateCreateFarmInput(body = {}) {
-  const errors = [];
+  const errors = ownershipPayloadErrors(body);
 
   // 1. Farm Name
   const farmName = (body.farmName || body.name || "").trim();
@@ -129,12 +130,10 @@ export function validateCreateFarmInput(body = {}) {
  * Validates partial updates to an existing farm.
  */
 export function validateUpdateFarmInput(body = {}) {
-  const errors = [];
+  const errors = ownershipPayloadErrors(body);
 
   // Forbid altering ownership
-  if ("userId" in body || "_id" in body) {
-    errors.push({ field: "userId", message: "Farm ownership cannot be modified." });
-  }
+  // ownershipPayloadErrors rejects owner/resource identifiers at the payload boundary.
 
   if (body.farmName !== undefined) {
     const farmName = String(body.farmName).trim();

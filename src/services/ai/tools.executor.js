@@ -22,10 +22,15 @@ import mongoose from "mongoose";
 import { summarizeGpmLocalDay } from "../nasa/gpm.validation.js";
 import { Farm } from "../../models/farm.model.js";
 import { FarmActivity } from "../../models/farmactivity.model.js";
+import { ownedFarmFilter } from "../../security/farm-ownership.js";
 import {
   generateFarmLifecycleTimeline,
   getCropLifecycleTemplate,
 } from "../croplifecycle.service.js";
+import { getLiveForecast } from "../weather/forecast.service.js";
+import { getSeasonalOutlook } from "../weather/seasonal.service.js";
+import { getActiveOfficialWarnings } from "../weather/warning.service.js";
+import { assessAgriculturalRisks } from "../weather/risk.engine.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +43,21 @@ const SUPPORTED_CROPS = [
   { code: "aus_rice", aliases: ["aus", "aus_rice", "আউশ", "আউশ ধান"], nameEn: "Aus Rice", nameBn: "আউশ ধান" },
   { code: "mustard", aliases: ["mustard", "sarisha", "সরিষা", "রাই"], nameEn: "Mustard", nameBn: "সরিষা" },
 ];
+
+async function findOwnedFarmForTool(farmId, userId) {
+  if (!farmId || !mongoose.Types.ObjectId.isValid(farmId)) {
+    return { error: "INVALID_FARM_ID: A valid farm ID is required." };
+  }
+  const filter = ownedFarmFilter(farmId, userId);
+  if (!filter) {
+    return { error: "FARM_ACCESS_DENIED: Authentication is required to access farm data." };
+  }
+  const farm = await Farm.findOne(filter).lean();
+  if (!farm) {
+    return { error: "FARM_NOT_FOUND: Farm not found or access denied." };
+  }
+  return { farm };
+}
 
 let cachedCalendars = null;
 function getCropCalendarsData() {
@@ -549,18 +569,9 @@ export const toolExecutors = {
    * 8. Farmer's specific farm details.
    */
   async getMyFarmDetails({ farmId, userId }) {
-    if (!farmId || !mongoose.Types.ObjectId.isValid(farmId)) {
-      return { error: "INVALID_FARM_ID: A valid 24-character hexadecimal farm ID is required." };
-    }
-
-    const farm = await Farm.findById(farmId).lean();
-    if (!farm) {
-      return { error: "FARM_NOT_FOUND: The requested farm could not be found." };
-    }
-
-    if (userId && farm.userId && farm.userId.toString() !== userId.toString()) {
-      return { error: "FARM_ACCESS_DENIED: You do not have permission to view this farm." };
-    }
+    const access = await findOwnedFarmForTool(farmId, userId);
+    if (access.error) return access;
+    const { farm } = access;
 
     return {
       farmId: farm._id.toString(),
@@ -587,18 +598,9 @@ export const toolExecutors = {
    * 9. Farm lifecycle stages and current phenological progress.
    */
   async getMyFarmLifecycle({ farmId, userId }) {
-    if (!farmId || !mongoose.Types.ObjectId.isValid(farmId)) {
-      return { error: "INVALID_FARM_ID: A valid farm ID is required." };
-    }
-
-    const farm = await Farm.findById(farmId).lean();
-    if (!farm) {
-      return { error: "FARM_NOT_FOUND: The requested farm could not be found." };
-    }
-
-    if (userId && farm.userId && farm.userId.toString() !== userId.toString()) {
-      return { error: "FARM_ACCESS_DENIED: Access denied." };
-    }
+    const access = await findOwnedFarmForTool(farmId, userId);
+    if (access.error) return access;
+    const { farm } = access;
 
     const timelineRes = generateFarmLifecycleTimeline(farm);
     if (!timelineRes.success) {
@@ -647,20 +649,11 @@ export const toolExecutors = {
    * 10. Farm activities and agricultural tasks.
    */
   async getMyFarmActivities({ farmId, userId, status }) {
-    if (!farmId || !mongoose.Types.ObjectId.isValid(farmId)) {
-      return { error: "INVALID_FARM_ID: A valid farm ID is required." };
-    }
+    const access = await findOwnedFarmForTool(farmId, userId);
+    if (access.error) return access;
+    const { farm } = access;
 
-    const farm = await Farm.findById(farmId).lean();
-    if (!farm) {
-      return { error: "FARM_NOT_FOUND: The requested farm could not be found." };
-    }
-
-    if (userId && farm.userId && farm.userId.toString() !== userId.toString()) {
-      return { error: "FARM_ACCESS_DENIED: Access denied." };
-    }
-
-    const query = { farmId: farm._id };
+    const query = { farmId: farm._id, userId: farm.userId };
     if (status && status !== "ALL") {
       query.status = status.toUpperCase();
     }
@@ -693,18 +686,9 @@ export const toolExecutors = {
    * 11. Localized NASA environmental intelligence for the farm.
    */
   async getMyFarmEnvironmentalContext({ farmId, userId }) {
-    if (!farmId || !mongoose.Types.ObjectId.isValid(farmId)) {
-      return { error: "INVALID_FARM_ID: A valid farm ID is required." };
-    }
-
-    const farm = await Farm.findById(farmId).lean();
-    if (!farm) {
-      return { error: "FARM_NOT_FOUND: The requested farm could not be found." };
-    }
-
-    if (userId && farm.userId && farm.userId.toString() !== userId.toString()) {
-      return { error: "FARM_ACCESS_DENIED: Access denied." };
-    }
+    const access = await findOwnedFarmForTool(farmId, userId);
+    if (access.error) return access;
+    const { farm } = access;
 
     const district = farm.location?.districtCode || "cumilla";
     const [soilMoisture, vegetation, climate] = await Promise.all([
@@ -787,21 +771,13 @@ export const toolExecutors = {
    * 13. Completed activity history and farmer notes.
    */
   async getFarmActivityHistory({ farmId, userId }) {
-    if (!farmId || !mongoose.Types.ObjectId.isValid(farmId)) {
-      return { error: "INVALID_FARM_ID: A valid farm ID is required." };
-    }
-
-    const farm = await Farm.findById(farmId).lean();
-    if (!farm) {
-      return { error: "FARM_NOT_FOUND: The requested farm could not be found." };
-    }
-
-    if (userId && farm.userId && farm.userId.toString() !== userId.toString()) {
-      return { error: "FARM_ACCESS_DENIED: Access denied." };
-    }
+    const access = await findOwnedFarmForTool(farmId, userId);
+    if (access.error) return access;
+    const { farm } = access;
 
     const history = await FarmActivity.find({
       farmId: farm._id,
+      userId: farm.userId,
       status: { $in: ["COMPLETED", "SKIPPED"] },
     })
       .sort({ completedAt: -1, updatedAt: -1 })
@@ -821,6 +797,168 @@ export const toolExecutors = {
         completionNote: h.completionNote,
         activityType: h.activityType,
       })),
+    };
+  },
+
+  /**
+   * 14. Live weather forecast (1-7d short-range & 8-16d extended).
+   */
+  async getLocationWeatherForecast({ location, farmId, userId }) {
+    let targetLocation = location || "Chattogram";
+    if (farmId) {
+      const access = await findOwnedFarmForTool(farmId, userId);
+      if (access.error) return access;
+      if (access.farm.location?.district) targetLocation = access.farm.location.district;
+    }
+
+    const forecast = await getLiveForecast({ locationIdentifier: targetLocation });
+    return {
+      location: forecast.location,
+      current: forecast.currentConditions,
+      next7Days: forecast.shortRangeForecast.map((d) => ({
+        date: d.date,
+        condition: d.conditionEn,
+        rainMm: d.precipitationSumMm,
+        rainProb: d.precipitationProbabilityMax,
+        maxTempC: d.temperatureMaxC,
+        minTempC: d.temperatureMinC,
+        maxWindKmH: d.windSpeedMaxKmH,
+        gustKmH: d.windGustsMaxKmH,
+      })),
+      extendedOutlookSummary: {
+        days8to16AvgMaxTempC: Number((forecast.extendedForecast.reduce((acc, d) => acc + d.temperatureMaxC, 0) / forecast.extendedForecast.length).toFixed(1)),
+        days8to16TotalRainMm: Number(forecast.extendedForecast.reduce((acc, d) => acc + d.precipitationSumMm, 0).toFixed(1)),
+        uncertaintyNotice: "Extended forecast (days 8-16) contains higher uncertainty than days 1-7.",
+      },
+      provenance: forecast.meta,
+    };
+  },
+
+  /**
+   * 15. Active weather risk alerts & official BMD warnings.
+   */
+  async getActiveWeatherAlerts({ location, crop, farmId, userId }) {
+    let targetLocation = location || "Chattogram";
+    let targetCrop = crop || null;
+
+    if (farmId) {
+      const access = await findOwnedFarmForTool(farmId, userId);
+      if (access.error) return access;
+      if (access.farm.location?.district) targetLocation = access.farm.location.district;
+      if (!targetCrop && access.farm.crop?.cropCode) targetCrop = access.farm.crop.cropCode;
+    }
+
+    const [forecast, officialWarnings] = await Promise.all([
+      getLiveForecast({ locationIdentifier: targetLocation }),
+      getActiveOfficialWarnings({ division: targetLocation, district: targetLocation }),
+    ]);
+
+    const assessment = assessAgriculturalRisks({
+      forecast,
+      officialWarnings,
+      crop: targetCrop,
+    });
+
+    return {
+      location: forecast.location,
+      overallRiskLevel: assessment.overallRiskLevel,
+      alertsCount: assessment.activeAlertsCount,
+      officialWarningsCount: officialWarnings.length,
+      alerts: assessment.alerts.map((a) => ({
+        source: a.source,
+        category: a.category,
+        severity: a.severity,
+        title: a.titleEn,
+        titleBn: a.titleBn,
+        advice: a.actionAdviceEn,
+        adviceBn: a.actionAdviceBn,
+        isGovernmentNotice: Boolean(a.isGovernmentNotice || a.source === "OFFICIAL_GOVERNMENT_WARNING"),
+        isOfficialGovernmentWarning: Boolean(a.isOfficialGovernmentWarning || a.source === "OFFICIAL_GOVERNMENT_WARNING"),
+      })),
+      precautions: assessment.operationalRecommendationsEn,
+      actionsToPause: assessment.pauseActionsEn,
+    };
+  },
+
+  /**
+   * 16. Crop-specific hazard evaluation against growth stages.
+   */
+  async getAgriculturalRiskAssessment({ location, crop, stage }) {
+    const targetLocation = location || "Chattogram";
+    const [forecast, officialWarnings] = await Promise.all([
+      getLiveForecast({ locationIdentifier: targetLocation }),
+      getActiveOfficialWarnings({ division: targetLocation, district: targetLocation }),
+    ]);
+
+    const assessment = assessAgriculturalRisks({
+      forecast,
+      officialWarnings,
+      crop,
+      cropStage: stage,
+    });
+
+    return {
+      targetCrop: crop,
+      cropStage: stage || "Current Stage",
+      overallRiskLevel: assessment.overallRiskLevel,
+      alerts: assessment.alerts,
+      recommendations: assessment.operationalRecommendationsEn,
+      pauseList: assessment.pauseActionsEn,
+    };
+  },
+
+  /**
+   * 17. Sub-seasonal weekly tendencies (Weeks 1 to 6).
+   */
+  async getWeeklyWeatherOutlook({ location }) {
+    const targetLocation = location || "Chattogram";
+    const seasonal = await getSeasonalOutlook({ locationIdentifier: targetLocation });
+    return {
+      location: seasonal.location,
+      weeklyTendencies: seasonal.subSeasonalWeeklyOutlook.map((w) => ({
+        week: `Week ${w.weekNumber} (${w.startDate} to ${w.endDate})`,
+        expectedRainfallMeanMm: w.expectedRainfallMeanMm,
+        rainfallRangeMm: w.rainfallRangeMm,
+        expectedTempMeanC: w.expectedTempMeanC,
+        tempRangeC: w.tempRangeC,
+        rainTendency: w.rainTendencyEn,
+        horizon: w.horizonDescriptionEn,
+        usableEnsembleMembers: w.usableEnsembleMembers,
+      })),
+      source: seasonal.meta.sourceSystem,
+      spatialResolution: seasonal.meta.spatialResolution,
+      disclaimer: seasonal.meta.guidanceNoticeEn,
+    };
+  },
+
+  /**
+   * 18. Seasonal monthly climate outlook (Months 1 to 3 ahead).
+   */
+  async getSeasonalCropOutlook({ location, crop }) {
+    const targetLocation = location || "Chattogram";
+    const seasonal = await getSeasonalOutlook({ locationIdentifier: targetLocation });
+    return {
+      location: seasonal.location,
+      cropContext: crop || "General Crops",
+      monthlyOutlooks: seasonal.seasonalMonthlyOutlook.map((m) => ({
+        window: m.windowLabelEn,
+        month: m.monthNameEn,
+        startDate: m.startDate,
+        endDate: m.endDate,
+        ensembleMeanRainMm: m.ensembleRainfallMeanMm,
+        ensembleMedianRainMm: m.ensembleRainfallMedianMm,
+        rainfallSpreadMm: m.rainfallSpreadMm,
+        ensembleMeanTempC: m.ensembleTempMeanC,
+        tempSpreadC: m.tempSpreadC,
+        rainfallThresholdStatus: m.rainfallThresholdStatusEn || m.rainfallAnomalyStatusEn,
+        anomalyStatus: m.rainfallAnomalyStatusEn,
+        usableEnsembleMembers: m.usableEnsembleMembers,
+        tercileProbabilities: m.tercileProbabilities,
+      })),
+      source: seasonal.meta.sourceSystem,
+      spatialResolution: seasonal.meta.spatialResolution,
+      guidanceNotice: seasonal.meta.guidanceNoticeEn,
+      probabilisticDisclaimer: seasonal.meta.guidanceNoticeEn,
     };
   },
 };

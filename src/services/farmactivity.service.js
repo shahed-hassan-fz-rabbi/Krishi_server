@@ -18,6 +18,21 @@ import {
   VALID_ACTIVITY_STATUSES,
 } from "../models/farmactivity.model.js";
 import { generateFarmLifecycleTimeline } from "./croplifecycle.service.js";
+import { getBangladeshDateKey } from "../utils/bangladesh-date.js";
+import {
+  isAuthenticatedOwnerId,
+  ownedActivityFilter,
+  ownedFarmFilter,
+} from "../security/farm-ownership.js";
+
+function inaccessibleFarmResult(userId) {
+  return {
+    success: false,
+    statusCode: userId ? 404 : 401,
+    error: userId ? "Farm not found or access denied" : "Authentication required",
+    code: userId ? "FARM_NOT_FOUND" : "UNAUTHORIZED",
+  };
+}
 
 /**
  * Pure date addition helper using UTC midnight.
@@ -38,14 +53,11 @@ function addDaysUtc(isoDateStr, daysToAdd) {
  * @returns {Promise<Object>}
  */
 export async function generateActivitiesForFarm(farmId, userId) {
-  const farm = await Farm.findOne({ _id: farmId, userId });
+  const farmFilter = ownedFarmFilter(farmId, userId);
+  if (!farmFilter) return inaccessibleFarmResult(userId);
+  const farm = await Farm.findOne(farmFilter);
   if (!farm) {
-    return {
-      success: false,
-      statusCode: 404,
-      error: "Farm not found or access denied",
-      code: "FARM_NOT_FOUND",
-    };
+    return inaccessibleFarmResult(userId);
   }
 
   const plantingDate = farm.crop?.plantingDate ? String(farm.crop.plantingDate).trim() : null;
@@ -186,6 +198,7 @@ export async function generateActivitiesForFarm(farmId, userId) {
   const generatedKeys = candidateActivities.map((c) => c.generatedKey);
   const existingRecords = await FarmActivity.find({
     farmId: farm._id,
+    userId: farm.userId,
     generatedKey: { $in: generatedKeys },
   }).select("generatedKey");
 
@@ -216,14 +229,11 @@ export async function generateActivitiesForFarm(farmId, userId) {
  * @param {Object} filters - { status, stageCode, activityType, limit }
  */
 export async function getFarmActivities(farmId, userId, filters = {}) {
-  const farm = await Farm.findOne({ _id: farmId, userId });
+  const farmFilter = ownedFarmFilter(farmId, userId);
+  if (!farmFilter) return inaccessibleFarmResult(userId);
+  const farm = await Farm.findOne(farmFilter);
   if (!farm) {
-    return {
-      success: false,
-      statusCode: 404,
-      error: "Farm not found or access denied",
-      code: "FARM_NOT_FOUND",
-    };
+    return inaccessibleFarmResult(userId);
   }
 
   const query = { farmId: farm._id, userId };
@@ -283,21 +293,15 @@ export async function getFarmActivities(farmId, userId, filters = {}) {
  * Retrieves a single activity by ID with ownership verification.
  */
 export async function getActivityById(farmId, activityId, userId) {
-  const farm = await Farm.findOne({ _id: farmId, userId });
+  const farmFilter = ownedFarmFilter(farmId, userId);
+  const activityFilter = ownedActivityFilter(farmId, activityId, userId);
+  if (!farmFilter || !activityFilter) return inaccessibleFarmResult(userId);
+  const farm = await Farm.findOne(farmFilter);
   if (!farm) {
-    return {
-      success: false,
-      statusCode: 404,
-      error: "Farm not found or access denied",
-      code: "FARM_NOT_FOUND",
-    };
+    return inaccessibleFarmResult(userId);
   }
 
-  const activity = await FarmActivity.findOne({
-    _id: activityId,
-    farmId: farm._id,
-    userId,
-  }).lean();
+  const activity = await FarmActivity.findOne(activityFilter).lean();
 
   if (!activity) {
     return {
@@ -318,14 +322,11 @@ export async function getActivityById(farmId, activityId, userId) {
  * Creates a custom farmer-defined activity.
  */
 export async function createCustomActivity(farmId, userId, inputData) {
-  const farm = await Farm.findOne({ _id: farmId, userId });
+  const farmFilter = ownedFarmFilter(farmId, userId);
+  if (!farmFilter) return inaccessibleFarmResult(userId);
+  const farm = await Farm.findOne(farmFilter);
   if (!farm) {
-    return {
-      success: false,
-      statusCode: 404,
-      error: "Farm not found or access denied",
-      code: "FARM_NOT_FOUND",
-    };
+    return inaccessibleFarmResult(userId);
   }
 
   const newActivity = new FarmActivity({
@@ -363,21 +364,15 @@ export async function createCustomActivity(farmId, userId, inputData) {
  * Strictly enforces ownership and protects official guidance fields.
  */
 export async function updateActivity(farmId, activityId, userId, updateData) {
-  const farm = await Farm.findOne({ _id: farmId, userId });
+  const farmFilter = ownedFarmFilter(farmId, userId);
+  const activityFilter = ownedActivityFilter(farmId, activityId, userId);
+  if (!farmFilter || !activityFilter) return inaccessibleFarmResult(userId);
+  const farm = await Farm.findOne(farmFilter);
   if (!farm) {
-    return {
-      success: false,
-      statusCode: 404,
-      error: "Farm not found or access denied",
-      code: "FARM_NOT_FOUND",
-    };
+    return inaccessibleFarmResult(userId);
   }
 
-  const activity = await FarmActivity.findOne({
-    _id: activityId,
-    farmId: farm._id,
-    userId,
-  });
+  const activity = await FarmActivity.findOne(activityFilter);
 
   if (!activity) {
     return {
@@ -436,21 +431,15 @@ export async function updateActivity(farmId, activityId, userId, updateData) {
  * Rejects deletion of official guidance tasks (they may be marked SKIPPED instead).
  */
 export async function deleteActivity(farmId, activityId, userId) {
-  const farm = await Farm.findOne({ _id: farmId, userId });
+  const farmFilter = ownedFarmFilter(farmId, userId);
+  const activityFilter = ownedActivityFilter(farmId, activityId, userId);
+  if (!farmFilter || !activityFilter) return inaccessibleFarmResult(userId);
+  const farm = await Farm.findOne(farmFilter);
   if (!farm) {
-    return {
-      success: false,
-      statusCode: 404,
-      error: "Farm not found or access denied",
-      code: "FARM_NOT_FOUND",
-    };
+    return inaccessibleFarmResult(userId);
   }
 
-  const activity = await FarmActivity.findOne({
-    _id: activityId,
-    farmId: farm._id,
-    userId,
-  });
+  const activity = await FarmActivity.findOne(activityFilter);
 
   if (!activity) {
     return {
@@ -470,7 +459,7 @@ export async function deleteActivity(farmId, activityId, userId) {
     };
   }
 
-  await FarmActivity.deleteOne({ _id: activity._id });
+  await FarmActivity.deleteOne(activityFilter);
 
   return {
     success: true,
@@ -483,6 +472,15 @@ export async function deleteActivity(farmId, activityId, userId) {
  * Aggregates user activity overview across all farms for the My Farm dashboard.
  */
 export async function getUserActivityOverview(userId) {
+  if (!isAuthenticatedOwnerId(userId)) {
+    return {
+      success: false,
+      statusCode: 401,
+      error: "Authentication required",
+      code: "UNAUTHORIZED",
+    };
+  }
+
   const farms = await Farm.find({ userId }).select("_id farmName location crop status").lean();
   if (!farms || farms.length === 0) {
     return {
@@ -512,7 +510,7 @@ export async function getUserActivityOverview(userId) {
   }
 
   const farmIds = farms.map((f) => f._id);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getBangladeshDateKey();
 
   const activities = await FarmActivity.find({
     userId,
@@ -594,11 +592,23 @@ export async function getUserActivityOverview(userId) {
  * (Service boundary for future notification system; no SMS or email dispatched).
  */
 export async function getNotificationReadiness(userId) {
-  const todayStr = new Date().toISOString().split("T")[0];
+  if (!isAuthenticatedOwnerId(userId)) {
+    return {
+      success: false,
+      statusCode: 401,
+      error: "Authentication required",
+      code: "UNAUTHORIZED",
+    };
+  }
+
+  const todayStr = getBangladeshDateKey();
   const next48h = addDaysUtc(todayStr, 2);
+  const ownedFarms = await Farm.find({ userId }).select("_id").lean();
+  const ownedFarmIds = ownedFarms.map((farm) => farm._id);
 
   const activities = await FarmActivity.find({
     userId,
+    farmId: { $in: ownedFarmIds },
     status: { $in: ["PENDING", "IN_PROGRESS"] },
     scheduledDate: { $gte: todayStr, $lte: next48h },
   })

@@ -5,6 +5,8 @@
  */
 
 import { errorResponse, successResponse } from "../utils/response.js";
+import { Farm } from "../models/farm.model.js";
+import { ownedFarmFilter } from "../security/farm-ownership.js";
 import {
   evaluateCropEligibility,
   getPlanningSatelliteContext,
@@ -18,6 +20,7 @@ import {
 export async function getCropRecommendations(req, res, next) {
   try {
     const {
+      farmId = null,
       districtCode,
       upazila = "",
       village = "",
@@ -27,9 +30,46 @@ export async function getCropRecommendations(req, res, next) {
       language = "bn",
     } = req.body || {};
 
-    if (!districtCode || typeof districtCode !== "string") {
+    let farmContext = null;
+    let profile = {
+      districtCode,
+      upazila,
+      village,
+      land,
+      water,
+    };
+
+    if (farmId) {
+      const ownerFilter = ownedFarmFilter(farmId, req.user?._id);
+      if (!ownerFilter) return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
+      const farm = await Farm.findOne(ownerFilter).lean();
+      if (!farm) return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
+      farmContext = { id: String(farm._id), farmName: farm.farmName };
+      profile = {
+        districtCode: farm.location?.districtCode,
+        upazila: farm.location?.upazila || "",
+        village: farm.location?.village || "",
+        land: {
+          area: farm.land?.area ?? null,
+          unit: farm.land?.unit || "decimal",
+          landType: farm.land?.landType || "unspecified",
+          soilType: farm.soil?.type || "unknown",
+          drainage: farm.soil?.drainage || "unknown",
+        },
+        water: {
+          irrigationAvailability: farm.water?.irrigationAvailability || "unavailable",
+          waterSource: farm.water?.waterSource || "",
+        },
+      };
+    }
+
+    if (!profile.districtCode || typeof profile.districtCode !== "string") {
       return errorResponse(res, 400, "District code is required for crop planning.");
     }
+
+    const resolvedDistrictCode = profile.districtCode;
+    const resolvedUpazila = profile.upazila || "";
+    const resolvedVillage = profile.village || "";
 
     const {
       area = null,
@@ -37,12 +77,12 @@ export async function getCropRecommendations(req, res, next) {
       landType = "medium_high",
       soilType = "unknown",
       drainage = "good",
-    } = land;
+    } = profile.land || {};
 
     const {
       irrigationAvailability = "available",
       waterSource = "",
-    } = water;
+    } = profile.water || {};
 
     const {
       seasonPreference = null,
@@ -52,8 +92,8 @@ export async function getCropRecommendations(req, res, next) {
 
     // 1. Evaluate deterministic crop eligibility against official calendars
     const eligibility = evaluateCropEligibility({
-      districtCode,
-      upazila,
+      districtCode: resolvedDistrictCode,
+      upazila: resolvedUpazila,
       landType,
       soilType,
       drainage,
@@ -69,12 +109,12 @@ export async function getCropRecommendations(req, res, next) {
     }
 
     // 2. Fetch NASA environmental context (SMAP & MODIS)
-    const satelliteContext = await getPlanningSatelliteContext(districtCode);
+    const satelliteContext = await getPlanningSatelliteContext(resolvedDistrictCode);
 
     // 3. Generate grounded AI explanation (Gemini with deterministic fallback)
     const aiExplanation = await generatePlanningExplanation({
-      districtCode,
-      upazila,
+      districtCode: resolvedDistrictCode,
+      upazila: resolvedUpazila,
       land: { area, unit, landType, soilType, drainage },
       water: { irrigationAvailability, waterSource },
       preferences: { seasonPreference, preferredCrop, targetPlantingPeriod },
@@ -85,9 +125,10 @@ export async function getCropRecommendations(req, res, next) {
 
     const payload = {
       query: {
-        districtCode: districtCode.trim().toLowerCase(),
-        upazila: (upazila || "").trim(),
-        village: (village || "").trim(),
+        farmId: farmContext?.id || null,
+        districtCode: resolvedDistrictCode.trim().toLowerCase(),
+        upazila: resolvedUpazila.trim(),
+        village: resolvedVillage.trim(),
         land: {
           area: typeof area === "number" ? area : null,
           unit,
@@ -106,6 +147,7 @@ export async function getCropRecommendations(req, res, next) {
         },
       },
       metadata: eligibility.metadata,
+      farm: farmContext,
       missingInfo: eligibility.missingInfo,
       crops: eligibility.crops,
       satelliteContext,

@@ -231,4 +231,99 @@ export const assistantTools = [
       required: ["farmId"],
     },
   },
+  {
+    name: "getLocationWeatherForecast",
+    description:
+      "Retrieve live short-range (1-7 days) and extended (8-16 days) weather forecast for a location (division, district, or farm) in Bangladesh, including daily rainfall, max/min temperature, precipitation probability, wind speed and gusts, and WMO conditions.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        location: {
+          type: "STRING",
+          description: "Target division or district name (e.g. 'Dhaka', 'Chattogram', 'Sylhet', 'Rajshahi', 'Khulna', 'Barishal', 'Rangpur', 'Mymensingh', 'Cumilla').",
+        },
+        farmId: {
+          type: "STRING",
+          description: "Optional farm ID to retrieve localized farm forecast.",
+        },
+      },
+    },
+  },
+  {
+    name: "getActiveWeatherAlerts",
+    description:
+      "Retrieve active agricultural risk alerts (heavy rain, severe heatwave, coldwave, lodging squalls, dry spells) and verified Bangladesh Meteorological Department (BMD) official warnings for a location and crop.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        location: {
+          type: "STRING",
+          description: "Target division or district name.",
+        },
+        crop: {
+          type: "STRING",
+          description: "Optional crop name (e.g. 'Aman', 'Boro', 'Mustard', 'Potato').",
+        },
+        farmId: {
+          type: "STRING",
+          description: "Optional farm ID.",
+        },
+      },
+    },
+  },
+  {
+    name: "getAgriculturalRiskAssessment",
+    description:
+      "Evaluate deterministic agricultural hazard risks against crop vulnerability stages with operational precautions (actions to pause, spraying safety, drainage).",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        location: {
+          type: "STRING",
+          description: "Target location name.",
+        },
+        crop: {
+          type: "STRING",
+          description: "Crop name (e.g. 'Aman', 'Boro', 'Mustard').",
+        },
+        stage: {
+          type: "STRING",
+          description: "Crop stage (e.g. 'sowing', 'vegetative', 'flowering', 'harvest').",
+        },
+      },
+      required: ["crop"],
+    },
+  },
+  {
+    name: "getWeeklyWeatherOutlook",
+    description:
+      "Retrieve sub-seasonal Weeks 1 to 6 weekly rainfall and temperature tendencies from the Open-Meteo seasonal forecast service to plan field operations weeks in advance. Note: represents coarse regional tendencies, not daily forecasts.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        location: {
+          type: "STRING",
+          description: "Target division or district name.",
+        },
+      },
+    },
+  },
+  {
+    name: "getSeasonalCropOutlook",
+    description:
+      "Retrieve coarse regional seasonal outlook for Months 1 to 3 ahead, including neutral rainfall threshold categories (low/moderate/elevated) and regional temperature trends. Note: numerical tercile probabilities are omitted due to absence of 30-year model climatology baselines.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        location: {
+          type: "STRING",
+          description: "Target division or district name.",
+        },
+        crop: {
+          type: "STRING",
+          description: "Optional crop name to contextualize seasonal outlook.",
+        },
+      },
+    },
+  },
 ];

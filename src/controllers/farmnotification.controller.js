@@ -76,6 +76,9 @@ export async function markAllAsRead(req, res, next) {
     }
 
     const result = await FarmNotificationService.markAllAsRead(userId, farmId);
+    if (!result.success) {
+      return errorResponse(res, result.error === "Authentication required" ? 401 : 404, result.error, "NOT_FOUND");
+    }
     return successResponse(res, 200, result, {
       message: `Marked ${result.modifiedCount} notification(s) as read`,
     });

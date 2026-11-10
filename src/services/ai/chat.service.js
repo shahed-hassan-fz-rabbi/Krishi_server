@@ -251,6 +251,152 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     }
   }
 
+  // Weather Forecast, Alert, or Outlook queries
+  if (
+    normMessage.includes("পূর্বাভাস") ||
+    normMessage.includes("forecast") ||
+    normMessage.includes("আবহাওয়া") ||
+    normMessage.includes("weather") ||
+    normMessage.includes("সতর্কতা") ||
+    normMessage.includes("alert") ||
+    normMessage.includes("warning") ||
+    normMessage.includes("ঝড়") ||
+    normMessage.includes("কালবৈশাখী") ||
+    normMessage.includes("তাপদাহ") ||
+    normMessage.includes("শৈত্যপ্রবাহ")
+  ) {
+    let targetLoc = validDistrict || "Chattogram";
+    for (const div of ["dhaka", "chattogram", "sylhet", "rajshahi", "khulna", "barishal", "rangpur", "mymensingh", "cumilla"]) {
+      if (normMessage.includes(div)) {
+        targetLoc = div;
+        break;
+      }
+    }
+
+    const isBangla = /[\u0980-\u09FF]/.test(message);
+    const forecastData = await toolExecutors.getLocationWeatherForecast({ location: targetLoc, farmId, userId });
+    const alertsData = await toolExecutors.getActiveWeatherAlerts({ location: targetLoc, crop, farmId });
+    executedTools.push({ toolName: "getLocationWeatherForecast", result: forecastData });
+    executedTools.push({ toolName: "getActiveWeatherAlerts", result: alertsData });
+
+    sources.push("Open-Meteo High-Resolution Numerical Forecast");
+    const hasOfficialBulletins = (alertsData.officialWarningsCount > 0) ||
+      (Array.isArray(alertsData.alerts) && alertsData.alerts.some(a => a.isGovernmentNotice));
+    if (hasOfficialBulletins) {
+      sources.push("Bangladesh Meteorological Department (BMD) Official Bulletins");
+    }
+
+    const cur = forecastData.current;
+    const locNameEn = forecastData.location?.nameEn || targetLoc;
+    const locNameBn = forecastData.location?.nameBn || locNameEn;
+    const alertCount = alertsData.alertsCount || 0;
+    const overallRisk = alertsData.overallRiskLevel || "DATA_INSUFFICIENT";
+    const isDataInsufficient = overallRisk === "DATA_INSUFFICIENT" || !cur || forecastData.error;
+
+    dataDate = cur?.date || null;
+    dataQuality = isDataInsufficient ? "insufficient_data" : "verified";
+    provenance.push("Open-Meteo API (Asia/Dhaka) & BMD Hazard Criteria");
+    limitations.push(
+      isBangla
+        ? "১-৭ দিনের পূর্বাভাস সংখ্যাভিত্তিক আবহাওয়া মডেলের ওপর ভিত্তি করে তৈরি। বর্ধিত ও মৌসুমী দৃষ্টিভঙ্গিতে স্বাভাবিক অনিশ্চয়তা রয়েছে।"
+        : "1–7 day forecasts are based on deterministic numerical weather prediction models; extended horizons carry elevated uncertainty."
+    );
+
+    let weatherSummary;
+
+    if (isDataInsufficient) {
+      if (isBangla) {
+        weatherSummary = `📍 **${locNameBn}-এর আবহাওয়া উপাত্ত:**\n` +
+          `⚠️ এই এলাকার জন্য পর্যাপ্ত আবহাওয়া পূর্বাভাস বা ঝুঁকি উপাত্ত বর্তমানে অনুপলব্ধ।\n` +
+          `- সামগ্রিক কৃষি ঝুঁকি: উপাত্ত অপর্যাপ্ত (অজানা)\n` +
+          `- পরিস্থিতি: প্রয়োজনীয় উপাত্তের অনুপস্থিতিতে আনুমানিক বা কাল্পনিক ঝুঁকি স্তর নির্ধারণ করা বিজ্ঞানসম্মত নয়।\n` +
+          `- পরামর্শ: স্প্রে বা সেচের মতো স্পর্শকাতর কৃষিকাজ পরিচালনার আগে স্থানীয় কৃষি কর্মকর্তা বা বিশ্বস্ত আবহাওয়া পর্যবেক্ষকের পরামর্শ নিন।`;
+      } else {
+        weatherSummary = `📍 **Weather Intelligence for ${locNameEn}:**\n` +
+          `⚠️ Sufficient weather forecast or agronomic risk observations are currently unavailable for this location.\n` +
+          `- Overall Agricultural Risk: DATA INSUFFICIENT (UNKNOWN)\n` +
+          `- Status: Risk levels and operational safety cannot be safely evaluated without verified provider observations.\n` +
+          `- Guidance: Please consult local agricultural extension officers before scheduling chemical spraying or harvesting.`;
+      }
+    } else {
+      const conditionStr = cur.conditionEn || (isBangla ? "তথ্য পাওয়া যায়নি" : "Data unavailable");
+      const riskLabelBn = overallRisk === "SEVERE"
+        ? "তীব্র (SEVERE)"
+        : overallRisk === "HIGH"
+        ? "উচ্চ (HIGH)"
+        : overallRisk === "MODERATE"
+        ? "মাঝারি (MODERATE)"
+        : "স্বাভাবিক / কম (LOW)";
+      const riskLabelEn = overallRisk;
+
+      const hasRainMetric = typeof cur.todayRainExpectedMm === "number" && Number.isFinite(cur.todayRainExpectedMm);
+      const hasRainProb = typeof cur.todayRainProbabilityPercent === "number" && Number.isFinite(cur.todayRainProbabilityPercent);
+      const hasWindMetric = typeof cur.maxWindSpeedKmH === "number" && Number.isFinite(cur.maxWindSpeedKmH);
+
+      const rainStrEn = hasRainMetric ? `${cur.todayRainExpectedMm} mm` : "Not observed";
+      const rainProbStrEn = hasRainProb ? `${cur.todayRainProbabilityPercent}%` : "Not available";
+      const windStrEn = hasWindMetric ? `${cur.maxWindSpeedKmH} km/h` : "Not observed";
+
+      const rainStrBn = hasRainMetric ? `${cur.todayRainExpectedMm} মিমি` : "উপাত্ত নেই";
+      const rainProbStrBn = hasRainProb ? `${cur.todayRainProbabilityPercent}%` : "অনুপলব্ধ";
+      const windStrBn = hasWindMetric ? `${cur.maxWindSpeedKmH} কিমি/ঘণ্টা` : "উপাত্ত নেই";
+
+      if (isBangla) {
+        weatherSummary = `📍 **${locNameBn}-এর আবহাওয়া পূর্বাভাস ও কৃষি সতর্কতা:**\n` +
+          `- বর্তমান অবস্থা: ${conditionStr} (সর্বোচ্চ: ${cur.temperatureMaxC}°সে, সর্বনিম্ন: ${cur.temperatureMinC}°সে)\n` +
+          `- আজকের সম্ভাব্য বৃষ্টি: ${rainStrBn} (সম্ভাবনা: ${rainProbStrBn})\n` +
+          `- বাতাসের গতি: ${windStrBn}\n` +
+          `- সামগ্রিক কৃষি ঝুঁকি: ${riskLabelBn}\n`;
+
+        if (alertCount > 0) {
+          weatherSummary += `\n⚠️ **সক্রিয় কৃষি সতর্কতা (${alertCount}টি):**\n`;
+          alertsData.alerts.slice(0, 3).forEach((a, i) => {
+            const sourceBadge = a.isGovernmentNotice ? "[সরকারি বিএমডি বুলেটিন]" : "[পূর্বাভাসভিত্তিক কৃষি সতর্কতা]";
+            weatherSummary += `${i + 1}. ${sourceBadge} **${a.titleBn || a.title}**\n   পরামর্শ: ${a.adviceBn || a.advice}\n`;
+          });
+        } else {
+          weatherSummary += `\n✅ বর্তমান প্রাপ্ত ৭ দিনের পূর্বাভাসের ভিত্তিতে কোনো সক্রিয় উচ্চ বা তীব্র কৃষি আবহাওয়া সতর্কতা নেই।`;
+        }
+
+        if (alertsData.precautions && alertsData.precautions.length > 0) {
+          weatherSummary += `\n🌾 **মাঠ পর্যায়ের কৃষিজ পরামর্শ:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
+        }
+      } else {
+        weatherSummary = `📍 **Weather Forecast & Agricultural Risks for ${locNameEn}:**\n` +
+          `- Current Conditions: ${conditionStr} (Max: ${cur.temperatureMaxC}°C, Min: ${cur.temperatureMinC}°C)\n` +
+          `- Expected Rain Today: ${rainStrEn} (Probability: ${rainProbStrEn})\n` +
+          `- Peak Wind Speed: ${windStrEn}\n` +
+          `- Overall Agricultural Risk: ${riskLabelEn}\n`;
+
+        if (alertCount > 0) {
+          weatherSummary += `\n⚠️ **Active Weather & Risk Alerts (${alertCount}):**\n`;
+          alertsData.alerts.slice(0, 3).forEach((a, i) => {
+            const sourceBadge = a.isGovernmentNotice ? "[Official BMD Warning]" : "[Forecast Risk Alert]";
+            weatherSummary += `${i + 1}. ${sourceBadge} **${a.title}**\n   Advice: ${a.advice}\n`;
+          });
+        } else {
+          weatherSummary += `\n✅ No active high or severe agricultural weather hazards indicated in the current 7-day forecast.`;
+        }
+
+        if (alertsData.precautions && alertsData.precautions.length > 0) {
+          weatherSummary += `\n🌾 **Field Operational Guidance:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
+        }
+      }
+    }
+
+    return {
+      answer: weatherSummary,
+      language: isBangla ? "bn" : "en",
+      executedTools,
+      sources,
+      dataDate: dataDate || (isDataInsufficient ? "Unavailable" : new Date().toISOString().slice(0, 10)),
+      dataQuality,
+      provenance,
+      limitations,
+      modelUsed: "deterministic-weather-grounded-engine",
+    };
+  }
+
   // 0. Check for Unsupported District or Crop in user query text
   const UNSUPPORTED_DISTRICTS_BN = ["রংপুর", "সিলেট", "রাজশাহী", "ঢাকা", "বরিশাল", "খুলনা", "ময়মনসিংহ", "বগুড়া", "দিনাজপুর", "যশোর", "পাবনা", "কুষ্টিয়া"];
   const UNSUPPORTED_CROPS_BN = ["গম", "ভুট্টা", "আলু", "পাট", "তুলা", "ডাল", "পেঁয়াজ"];
@@ -761,6 +907,34 @@ export class AssistantChatService {
           } else if (call.toolName === "getFarmActivityHistory") {
             sources.add("Krishi Mama Farm Activity Log");
             provenance.push("Farmer Operational History");
+          } else if (call.toolName === "getLocationWeatherForecast") {
+            sources.add("Open-Meteo High-Resolution NWP API");
+            if (res.current?.date) dataDate = res.current.date;
+            if (res.meta?.numericalModel) provenance.push(res.meta.numericalModel);
+            limitations.push("1–7 day deterministic NWP; extended days 8–16 have elevated uncertainty.");
+          } else if (call.toolName === "getActiveWeatherAlerts") {
+            sources.add("Agro-Meteorological Risk Engine");
+            if (res.officialWarningsCount > 0 || (Array.isArray(res.alerts) && res.alerts.some(a => a.isGovernmentNotice))) {
+              sources.add("Bangladesh Meteorological Department (BMD) Official Bulletins");
+            }
+            provenance.push("BMD & DAE Meteorological Hazard Criteria");
+            limitations.push("Alerts strictly distinguish official government bulletins from internal agro-weather risks.");
+          } else if (call.toolName === "getAgriculturalRiskAssessment") {
+            sources.add("Krishi Mama Agricultural Risk Engine");
+            if (Array.isArray(res.alerts) && res.alerts.some(a => a.isGovernmentNotice)) {
+              sources.add("Bangladesh Meteorological Department (BMD)");
+            }
+            provenance.push("DAE / BRRI Agronomic Thresholds");
+          } else if (call.toolName === "getWeeklyWeatherOutlook") {
+            sources.add("Open-Meteo Seasonal Forecast API");
+            provenance.push(res.source || "Open-Meteo Sub-seasonal Outlook");
+            if (res.spatialResolution) limitations.push(res.spatialResolution);
+            if (!dataDate) dataDate = "Seasonal Projection Window";
+          } else if (call.toolName === "getSeasonalCropOutlook") {
+            sources.add("Open-Meteo Seasonal Forecast API");
+            provenance.push(res.source || "Open-Meteo Seasonal Model Forecast");
+            if (res.spatialResolution) limitations.push(res.spatialResolution);
+            if (!dataDate) dataDate = "Seasonal Projection Window";
           }
         }
 

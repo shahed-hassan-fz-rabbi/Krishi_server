@@ -6,6 +6,9 @@ export const NOTIFICATION_TYPES = [
   "ACTIVITY_OVERDUE",
   "LIFECYCLE_STAGE_UPCOMING",
   "FARM_DATA_UNAVAILABLE",
+  "WEATHER_ALERT",
+  "OFFICIAL_WARNING",
+  "CROP_WEATHER_RISK",
 ];
 
 export const NOTIFICATION_SOURCE_TYPES = [
@@ -68,6 +71,11 @@ const farmNotificationSchema = new mongoose.Schema(
       type: String,
       default: null,
       match: [/^\d{4}-\d{2}-\d{2}$/, "scheduledFor must follow ISO YYYY-MM-DD format if provided"],
+    },
+    expiresAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
     isRead: {
       type: Boolean,

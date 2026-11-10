@@ -20,6 +20,7 @@ import { snapshotService } from "../services/snapshot.service.js";
 import { generateFarmLifecycleTimeline } from "../services/croplifecycle.service.js";
 import { getFarmEnvironmentalIntelligence } from "../services/farmenvironment.service.js";
 import { generateActivitiesForFarm } from "../services/farmactivity.service.js";
+import { ownedFarmFilter } from "../security/farm-ownership.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -196,10 +197,11 @@ export async function getFarmById(req, res, next) {
       return errorResponse(res, 400, "Invalid farm ID format", "INVALID_ID");
     }
 
-    const farm = await Farm.findById(id).lean();
+    const ownerFilter = ownedFarmFilter(id, userId);
+    const farm = ownerFilter ? await Farm.findOne(ownerFilter).lean() : null;
 
-    // Security: strict ownership check. Return 404 to avoid leaking existence.
-    if (!farm || farm.userId.toString() !== userId.toString()) {
+    // Return 404 for absent and foreign farms to avoid leaking existence.
+    if (!farm) {
       return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
     }
 
@@ -293,7 +295,8 @@ export async function updateFarm(req, res, next) {
       return errorResponse(res, 400, "Invalid farm ID format", "INVALID_ID");
     }
 
-    const farm = await Farm.findOne({ _id: id, userId });
+    const ownerFilter = ownedFarmFilter(id, userId);
+    const farm = ownerFilter ? await Farm.findOne(ownerFilter) : null;
     if (!farm) {
       return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
     }
@@ -375,14 +378,15 @@ export async function deleteFarm(req, res, next) {
       return errorResponse(res, 400, "Invalid farm ID format", "INVALID_ID");
     }
 
-    const farm = await Farm.findOne({ _id: id, userId });
+    const ownerFilter = ownedFarmFilter(id, userId);
+    const farm = ownerFilter ? await Farm.findOne(ownerFilter) : null;
     if (!farm) {
       return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
     }
 
-    await Farm.deleteOne({ _id: id, userId });
+    await Farm.deleteOne(ownerFilter);
     // Cascade delete associated activities
-    await FarmActivity.deleteMany({ farmId: id });
+    await FarmActivity.deleteMany({ farmId: id, userId });
 
     return successResponse(
       res,
@@ -412,8 +416,9 @@ export async function getFarmLifecycle(req, res, next) {
       return errorResponse(res, 400, "Invalid farm ID format", "INVALID_ID");
     }
 
-    const farm = await Farm.findById(id).lean();
-    if (!farm || farm.userId.toString() !== userId.toString()) {
+    const ownerFilter = ownedFarmFilter(id, userId);
+    const farm = ownerFilter ? await Farm.findOne(ownerFilter).lean() : null;
+    if (!farm) {
       return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
     }
 
@@ -446,7 +451,8 @@ export async function refreshFarmLifecycle(req, res, next) {
       return errorResponse(res, 400, "Invalid farm ID format", "INVALID_ID");
     }
 
-    const farm = await Farm.findOne({ _id: id, userId });
+    const ownerFilter = ownedFarmFilter(id, userId);
+    const farm = ownerFilter ? await Farm.findOne(ownerFilter) : null;
     if (!farm) {
       return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
     }
@@ -489,8 +495,9 @@ export async function getFarmEnvironment(req, res, next) {
       return errorResponse(res, 400, "Invalid farm ID format", "INVALID_ID");
     }
 
-    const farm = await Farm.findById(id).lean();
-    if (!farm || farm.userId.toString() !== userId.toString()) {
+    const ownerFilter = ownedFarmFilter(id, userId);
+    const farm = ownerFilter ? await Farm.findOne(ownerFilter).lean() : null;
+    if (!farm) {
       return errorResponse(res, 404, "Farm not found", "FARM_NOT_FOUND");
     }
 

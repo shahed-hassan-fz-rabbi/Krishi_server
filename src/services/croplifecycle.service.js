@@ -9,6 +9,7 @@
  * - Project-calculated calendar projections are clearly marked as estimates.
  * - No fabricated fertilizer dosages or speculative pesticide volumes.
  */
+import { getBangladeshDateKey } from "../utils/bangladesh-date.js";
 
 import fs from "fs";
 import path from "path";
@@ -219,7 +220,7 @@ export function generateFarmLifecycleTimeline(farm, options = {}) {
   const plantingDate = farm.crop?.plantingDate ? String(farm.crop.plantingDate).trim() : null;
   const isValidPlantingDate = Boolean(plantingDate && /^\d{4}-\d{2}-\d{2}$/.test(plantingDate));
 
-  const asOfDate = options.asOfDate || new Date().toISOString().split("T")[0];
+  const asOfDate = options.asOfDate || getBangladeshDateKey();
 
   // Calculate day offsets
   let daysSincePlanting = null;

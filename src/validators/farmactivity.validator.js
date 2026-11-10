@@ -7,6 +7,7 @@ import {
   VALID_ACTIVITY_TYPES,
   VALID_ACTIVITY_STATUSES,
 } from "../models/farmactivity.model.js";
+import { ownershipPayloadErrors } from "../security/farm-ownership.js";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -14,7 +15,7 @@ const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
  * Validates custom activity creation input.
  */
 export function validateCreateActivityInput(body = {}) {
-  const errors = [];
+  const errors = ownershipPayloadErrors(body);
 
   // Title
   const title = (body.title || "").trim();
@@ -65,7 +66,7 @@ export function validateCreateActivityInput(body = {}) {
  * Validates activity update input.
  */
 export function validateUpdateActivityInput(body = {}) {
-  const errors = [];
+  const errors = ownershipPayloadErrors(body);
 
   if (body.status !== undefined) {
     const status = String(body.status).trim().toUpperCase();

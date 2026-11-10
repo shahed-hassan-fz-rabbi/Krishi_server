@@ -198,6 +198,9 @@ export async function getActivitiesOverview(req, res, next) {
   try {
     const userId = req.user?._id;
     const result = await getUserActivityOverview(userId);
+    if (!result.success) {
+      return errorResponse(res, result.statusCode || 401, result.error, result.code);
+    }
     return successResponse(res, 200, result.data);
   } catch (error) {
     next(error);
@@ -212,6 +215,9 @@ export async function getActivitiesNotificationReadiness(req, res, next) {
   try {
     const userId = req.user?._id;
     const result = await getNotificationReadiness(userId);
+    if (!result.success) {
+      return errorResponse(res, result.statusCode || 401, result.error, result.code);
+    }
     return successResponse(res, 200, result.data);
   } catch (error) {
     next(error);

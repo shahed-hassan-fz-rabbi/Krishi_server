@@ -113,7 +113,9 @@ export class GeminiAssistantClient {
         // Merge context defaults if omitted
         if (!toolArgs.district && district) toolArgs.district = district;
         if (!toolArgs.crop && crop) toolArgs.crop = crop;
-        if (!toolArgs.farmId && farmId) toolArgs.farmId = farmId;
+        if (farmId) {
+          toolArgs.farmId = farmId;
+        }
         if (userId) toolArgs.userId = userId;
 
         const executor = toolExecutors[toolName];

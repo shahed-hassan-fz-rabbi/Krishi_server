@@ -11,7 +11,7 @@ import { assistantChatService } from "../src/services/ai/chat.service.js";
 dotenv.config();
 
 test("Assistant Tools Definitions match expected Google Gemini schema", () => {
-  assert.equal(assistantTools.length, 14);
+  assert.equal(assistantTools.length, 19);
   const toolNames = assistantTools.map((t) => t.name);
   assert.ok(toolNames.includes("getClimateNormals"));
   assert.ok(toolNames.includes("getPrecipitationLatest"));
@@ -27,6 +27,11 @@ test("Assistant Tools Definitions match expected Google Gemini schema", () => {
   assert.ok(toolNames.includes("getMyFarmEnvironmentalContext"));
   assert.ok(toolNames.includes("getOfficialCropGuidance"));
   assert.ok(toolNames.includes("getFarmActivityHistory"));
+  assert.ok(toolNames.includes("getLocationWeatherForecast"));
+  assert.ok(toolNames.includes("getActiveWeatherAlerts"));
+  assert.ok(toolNames.includes("getAgriculturalRiskAssessment"));
+  assert.ok(toolNames.includes("getWeeklyWeatherOutlook"));
+  assert.ok(toolNames.includes("getSeasonalCropOutlook"));
 
   for (const tool of assistantTools) {
     assert.equal(typeof tool.name, "string");
@@ -327,4 +332,26 @@ test("Gemini success path propagates GPM observation provenance and completeness
     geminiAssistantClient.isConfigured = originalConfigured;
     geminiAssistantClient.generateGroundedResponse = originalGenerate;
   }
+});
+
+test("Assistant Weather Tools Executors return structured data without fabrication", async () => {
+  const forecast = await toolExecutors.getLocationWeatherForecast({ location: "Dhaka" });
+  assert.ok(forecast.location);
+  assert.equal(forecast.next7Days.length, 7);
+  assert.ok(forecast.provenance);
+
+  const alerts = await toolExecutors.getActiveWeatherAlerts({ location: "Chattogram", crop: "monsoon_aman" });
+  assert.ok(alerts.location);
+  assert.ok(["LOW", "MODERATE", "HIGH", "SEVERE"].includes(alerts.overallRiskLevel));
+  assert.ok(Array.isArray(alerts.alerts));
+
+  const outlook = await toolExecutors.getWeeklyWeatherOutlook({ location: "Sylhet" });
+  assert.ok(outlook.location);
+  assert.ok(Array.isArray(outlook.weeklyTendencies));
+  assert.ok(outlook.weeklyTendencies.length > 0);
+
+  const seasonal = await toolExecutors.getSeasonalCropOutlook({ location: "Khulna", crop: "Boro" });
+  assert.ok(seasonal.location);
+  assert.ok(Array.isArray(seasonal.monthlyOutlooks));
+  assert.ok(seasonal.monthlyOutlooks.length > 0);
 });
