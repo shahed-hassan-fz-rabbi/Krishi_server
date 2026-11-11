@@ -32,13 +32,13 @@ export async function register(req, res) {
   }
 
   // Prevent duplicate email registration
-  const existingUser = await User.findOne({ email: sanitized.email });
+  const existingUser = await User.findOne(sanitized.email ? { email: sanitized.email } : { phone: sanitized.phone });
   if (existingUser) {
     return errorResponse(
       res,
       409,
-      "An account with this email address already exists",
-      "EMAIL_ALREADY_EXISTS"
+      "An account with this contact already exists",
+      sanitized.email ? "EMAIL_ALREADY_EXISTS" : "PHONE_ALREADY_EXISTS"
     );
   }
 
@@ -47,7 +47,8 @@ export async function register(req, res) {
 
   const newUser = await User.create({
     name: sanitized.name,
-    email: sanitized.email,
+    ...(sanitized.email ? { email: sanitized.email } : {}),
+    ...(sanitized.phone ? { phone: sanitized.phone } : {}),
     passwordHash,
     preferredDistrict: sanitized.preferredDistrict,
     role: "farmer", // Server-enforced, public registration cannot escalate role
@@ -80,14 +81,14 @@ export async function login(req, res) {
   }
 
   // Explicitly select passwordHash for verification
-  const user = await User.findOne({ email: sanitized.email }).select("+passwordHash");
+  const user = await User.findOne(sanitized.email ? { email: sanitized.email } : { phone: sanitized.phone }).select("+passwordHash");
   if (!user) {
-    return errorResponse(res, 401, "Invalid email or password", "INVALID_CREDENTIALS");
+    return errorResponse(res, 401, "Invalid email/phone or password", "INVALID_CREDENTIALS");
   }
 
   const isPasswordValid = await user.comparePassword(sanitized.password);
   if (!isPasswordValid) {
-    return errorResponse(res, 401, "Invalid email or password", "INVALID_CREDENTIALS");
+    return errorResponse(res, 401, "Invalid email/phone or password", "INVALID_CREDENTIALS");
   }
 
   // Update last login timestamp

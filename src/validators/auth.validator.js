@@ -1,4 +1,20 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function normalizePhone(value) {
+  if (typeof value !== "string") return "";
+  const digits = value.trim().replace(/[০-৯]/g, c => String("০১২৩৪৫৬৭৮৯".indexOf(c))).replace(/[\s()-]/g, "");
+  const local = digits.replace(/^(?:\+880|00880|880)/, "0");
+  return /^01[3-9]\d{8}$/.test(local) ? `+88${local}` : "";
+}
+function contactFields(body, errors) {
+  const identifier = typeof body.identifier === "string" ? body.identifier.trim() : "";
+  const email = identifier ? (identifier.includes("@") ? identifier.toLowerCase() : "") : typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const rawPhone = identifier && !identifier.includes("@") ? identifier : body.phone;
+  const phone = normalizePhone(rawPhone);
+  if (email && !EMAIL_REGEX.test(email)) errors.push("A valid email address is required");
+  if (rawPhone && !phone) errors.push("A valid Bangladesh mobile number is required");
+  if (!email && !phone && !rawPhone) errors.push("A valid email address or phone number is required");
+  return { ...(email ? { email } : {}), ...(phone ? { phone } : {}) };
+}
 const ALLOWED_DISTRICTS = ["chattogram", "cumilla"];
 
 /**
@@ -23,10 +39,7 @@ export function validateRegisterInput(body) {
     errors.push("Name cannot exceed 80 characters");
   }
 
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!email || !EMAIL_REGEX.test(email)) {
-    errors.push("A valid email address is required");
-  }
+  const contact = contactFields(body, errors);
 
   const password = typeof body.password === "string" ? body.password : "";
   if (!password || password.length < 8) {
@@ -50,7 +63,7 @@ export function validateRegisterInput(body) {
     errors,
     sanitized: errors.length === 0 ? {
       name,
-      email,
+      ...contact,
       password,
       preferredDistrict,
       role: "farmer",
@@ -72,10 +85,7 @@ export function validateLoginInput(body) {
     };
   }
 
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!email || !EMAIL_REGEX.test(email)) {
-    errors.push("A valid email address is required");
-  }
+  const contact = contactFields(body, errors);
 
   const password = typeof body.password === "string" ? body.password : "";
   if (!password) {
@@ -85,7 +95,7 @@ export function validateLoginInput(body) {
   return {
     isValid: errors.length === 0,
     errors,
-    sanitized: errors.length === 0 ? { email, password } : null,
+    sanitized: errors.length === 0 ? { ...contact, password } : null,
   };
 }
 

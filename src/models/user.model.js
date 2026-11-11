@@ -15,16 +15,15 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
-      unique: true,
+      required: function () { return !this.phone; },
       lowercase: true,
       trim: true,
       match: [
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         "Please provide a valid email address",
       ],
-      index: true,
     },
+    phone: { type: String, trim: true, match: /^\+8801[3-9]\d{8}$/ },
     passwordHash: {
       type: String,
       required: function () {
@@ -86,6 +85,9 @@ const userSchema = new mongoose.Schema(
     },
   }
 );
+
+userSchema.index({ email: 1 }, { name: "uniq_email_present", unique: true, partialFilterExpression: { email: { $type: "string" } } });
+userSchema.index({ phone: 1 }, { name: "uniq_phone_present", unique: true, partialFilterExpression: { phone: { $type: "string" } } });
 
 /**
  * Hash a plaintext password using bcrypt with 12 salt rounds.

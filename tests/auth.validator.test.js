@@ -141,3 +141,20 @@ test("User model hashes password with bcrypt and compares securely", async () =>
   const json = dummyUser.toJSON();
   assert.equal(json.passwordHash, undefined, "passwordHash must never appear in toJSON");
 });
+
+
+test("phone accounts normalize Bangla, local and international mobile numbers", async () => {
+  for (const phone of ["01712345678", "+8801712345678", "০০৮৮০১৭১২৩৪৫৬৭৮"]) {
+    const result = validateRegisterInput({ name: "Farmer", phone, password: "Password123" });
+    assert.equal(result.isValid, true);
+    assert.equal(result.sanitized.phone, "+8801712345678");
+    assert.equal(result.sanitized.email, undefined);
+    const user = new User({ name: "Farmer", phone: result.sanitized.phone, passwordHash: "hashed" });
+    await user.validate();
+  }
+  assert.equal(validateLoginInput({ identifier: "01712345678", password: "secret" }).sanitized.phone, "+8801712345678");
+  assert.equal(validateLoginInput({ identifier: "USER@Example.com", password: "secret" }).sanitized.email, "user@example.com");
+  for (const identifier of ["01212345678", "0171234567", "+441712345678", { "$ne": null }]) {
+    assert.equal(validateLoginInput({ identifier, password: "secret" }).isValid, false);
+  }
+});
