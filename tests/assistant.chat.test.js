@@ -5,12 +5,18 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { createApp } from "../src/app.js";
 
+import { User } from "../src/models/user.model.js";
+import { Conversation } from "../src/models/conversation.model.js";
+import { signToken } from "../src/utils/token.util.js";
+
 dotenv.config();
 
 test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests", async () => {
   const uri = process.env.MONGODB_URI;
   await mongoose.connect(uri);
 
+  const testUser = await User.create({ name: "Rotation Test", email: `rotation-chat-${Date.now()}@example.test`, password: "TestOnlyPassword123!", preferredDistrict: "cumilla" });
+  const token = signToken(testUser);
   const app = createApp();
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
@@ -21,7 +27,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 1. Question 1: আমন কাটার পর সরিষা বপন
     const q1Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "কুমিল্লায় আমন ধান কাটার পর সরিষা কখন বপন করা ভালো?",
         district: "cumilla",
@@ -39,7 +45,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 2. Question 2: ঐতিহাসিক বৃষ্টিপাত
     const q2Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "গত কয়েক বছরে কুমিল্লায় বৃষ্টিপাত কেমন ছিল?",
         district: "cumilla",
@@ -54,7 +60,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 3. Question 3: NASA SMAP মাটির আর্দ্রতা
     const q3Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "NASA SMAP দিয়ে মাটির আর্দ্রতা সম্পর্কে কী জানা যায়?",
         district: "cumilla",
@@ -75,7 +81,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 4. Question 4: NDVI এবং EVI সবুজতা সূচক
     const q4Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "NDVI এবং EVI কী বোঝায়?",
         district: "cumilla",
@@ -91,7 +97,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 5. Question 5: আমন থেকে সরিষায় যাওয়ার হ্যান্ডঅফ প্ল্যানার
     const q5Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "আমন থেকে সরিষায় যাওয়ার হ্যান্ডঅফ প্ল্যানার কী ফলাফল দেখাচ্ছে?",
         district: "cumilla",
@@ -105,7 +111,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 6. Question 6: বোরো থেকে আউশে যাওয়ার ঐতিহাসিক ফলাফল
     const q6Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "বোরো থেকে আউশে যাওয়ার ঐতিহাসিক ফলাফল কী?",
         district: "cumilla",
@@ -119,7 +125,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 7. Question 7: সরিষা চাষের সরকারি নির্দেশনা
     const q7Res = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "সরিষা চাষের সরকারি নির্দেশনা কী?",
         district: "cumilla",
@@ -133,7 +139,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 8. Negative: খালি মেসেজ (Empty message)
     const emptyRes = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ message: "" }),
     });
     assert.equal(emptyRes.status, 400);
@@ -144,7 +150,7 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     // 9. Edge case: অনুমোদনহীন জেলা (Unsupported district)
     const invalidDistRes = await fetch(chatUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         message: "সিলেটে ধান চাষের নিয়ম কী?",
         district: "sylhet",
@@ -156,6 +162,8 @@ test("Krishi Mama AI Assistant API — End-to-End Grounded Conversational Tests"
     assert.equal(invalidDistJson.data.dataQuality, "district_unsupported");
     assert.ok(invalidDistJson.data.answer.includes("কুমিল্লা") && invalidDistJson.data.answer.includes("চট্টগ্রাম"));
   } finally {
+    await Conversation.deleteMany({ userId: testUser._id });
+    await User.deleteOne({ _id: testUser._id });
     server.close();
     await mongoose.connection.close();
   }

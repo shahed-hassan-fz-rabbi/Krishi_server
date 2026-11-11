@@ -12,7 +12,7 @@ import {
   renameConversation,
   deleteConversation,
 } from "../../controllers/assistant.controller.js";
-import { authenticate, optionalAuthenticate } from "../../middleware/auth.middleware.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
 import { env } from "../../config/env.config.js";
 
 const router = Router();
@@ -38,7 +38,7 @@ router.get("/conversations/:id", authenticate, getConversation);
 router.patch("/conversations/:id", authenticate, renameConversation);
 router.delete("/conversations/:id", authenticate, deleteConversation);
 
-// Conversational Chat (Optional Authenticate - supports both persistent user & guest)
-router.post("/chat", chatRateLimiter, optionalAuthenticate, chatWithAssistant);
+// Assistant use and private history are available after login.
+router.post("/chat", authenticate, chatRateLimiter, chatWithAssistant);
 
 export default router;

@@ -48,7 +48,7 @@ test("Chat History & User Isolation Security Suite", async (t) => {
   let userBToken = "";
   let userAConversationId = "";
 
-  await t.test("Guest user chat returns isGuest: true without creating MongoDB conversation", async () => {
+  await t.test("Guest assistant use requires login and creates no conversation", async () => {
     const res = await fetch(`${baseUrl}/api/v1/assistant/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,12 +59,10 @@ test("Chat History & User Isolation Security Suite", async (t) => {
       }),
     });
 
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 401);
     const data = await res.json();
-    assert.equal(data.success, true);
-    assert.equal(data.data.isGuest, true);
-    assert.ok(data.data.guestNotice);
-    assert.ok(data.data.answer);
+    assert.equal(data.success, false);
+    assert.equal(data.error.code, "UNAUTHORIZED");
 
     // Verify no conversation was created in MongoDB for guests
     const count = await Conversation.countDocuments({});
