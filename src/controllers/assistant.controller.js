@@ -61,48 +61,68 @@ export async function chatWithAssistant(req, res, next) {
       let customHistory = [];
       let verifiedFarm = null;
 
-      if (farmId && mongoose.Types.ObjectId.isValid(farmId)) {
+      if (farmId != null) {
+        if (typeof farmId !== "string" || !mongoose.Types.ObjectId.isValid(farmId)) {
+          return errorResponse(res, 404, "Farm not found or access denied.", "FARM_NOT_FOUND");
+        }
         verifiedFarm = await Farm.findOne({
           _id: farmId,
           userId: currentUser._id,
         }).lean();
+        if (!verifiedFarm) {
+          return errorResponse(res, 404, "Farm not found or access denied.", "FARM_NOT_FOUND");
+        }
       }
 
       // If conversationId is provided, verify it belongs to this user
       if (conversationId) {
-        if (mongoose.Types.ObjectId.isValid(conversationId)) {
-          activeConversation = await Conversation.findOne({
-            _id: conversationId,
-            userId: currentUser._id,
-          });
-
-          // If ID was supplied but does not belong to this user -> refuse IDOR tampering
-          if (!activeConversation) {
-            return errorResponse(
-              res,
-              404,
-              "Conversation not found or access denied.",
-              "CONVERSATION_NOT_FOUND"
-            );
-          }
-
-          // If conversation had farmId and request didn't supply one, inherit it
-          if (!verifiedFarm && activeConversation.farmId) {
-            verifiedFarm = await Farm.findOne({
-              _id: activeConversation.farmId,
-              userId: currentUser._id,
-            }).lean();
-          }
-
-          // Build history for Gemini from saved messages
-          customHistory = activeConversation.messages.slice(-6).map((m) => ({
-            role: m.role === "user" ? "user" : "model",
-            parts: [{ text: m.content }],
-          }));
+        if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+          return errorResponse(res, 404, "Conversation not found or access denied.", "CONVERSATION_NOT_FOUND");
         }
+        activeConversation = await Conversation.findOne({
+          _id: conversationId,
+          userId: currentUser._id,
+        });
+
+        // If ID was supplied but does not belong to this user -> refuse IDOR tampering
+        if (!activeConversation) {
+          return errorResponse(
+            res,
+            404,
+            "Conversation not found or access denied.",
+            "CONVERSATION_NOT_FOUND"
+          );
+        }
+
+        // Conversation farm context is immutable. Farm switching starts a new conversation.
+        const requestIncludesFarm = Object.prototype.hasOwnProperty.call(req.body || {}, "farmId");
+        const savedFarmId = activeConversation.farmId?.toString() || null;
+        const requestedFarmId = verifiedFarm?._id?.toString() || null;
+        if (requestIncludesFarm && savedFarmId !== requestedFarmId) {
+          return errorResponse(
+            res,
+            409,
+            "Farm context changed. Start a new conversation to continue with a different farm.",
+            "CONVERSATION_FARM_CONTEXT_MISMATCH"
+          );
+        }
+
+        // Older clients may omit farmId; preserve the conversation's owned farm context.
+        if (!requestIncludesFarm && activeConversation.farmId) {
+          verifiedFarm = await Farm.findOne({
+            _id: activeConversation.farmId,
+            userId: currentUser._id,
+          }).lean();
+        }
+
+        // Build a bounded recent history for Gemini from saved messages.
+        customHistory = activeConversation.messages.slice(-6).map((m) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content }],
+        }));
       }
 
-      const effectiveDistrict = district || verifiedFarm?.location?.districtCode || "cumilla";
+      const effectiveDistrict = verifiedFarm?.location?.districtCode || district || "cumilla";
       const effectiveCrop = crop || verifiedFarm?.crop?.cropCode || null;
 
       // Execute AI chat resolution

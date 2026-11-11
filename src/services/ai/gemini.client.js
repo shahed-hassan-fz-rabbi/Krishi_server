@@ -112,7 +112,7 @@ export class GeminiAssistantClient {
 
         // Merge context defaults if omitted
         if (!toolArgs.district && district) toolArgs.district = district;
-        if (!toolArgs.crop && crop) toolArgs.crop = crop;
+        if (crop) toolArgs.crop = crop;
         if (farmId) {
           toolArgs.farmId = farmId;
         }

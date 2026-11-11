@@ -74,29 +74,39 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       normMessage.includes("টাস্ক") ||
       normMessage.includes("task") ||
       normMessage.includes("activity") ||
-      normMessage.includes("করণীয়")
+      normMessage.includes("করণীয়") ||
+      normMessage.includes("reminder") ||
+      normMessage.includes("due date")
     ) {
       const actData = await toolExecutors.getMyFarmActivities({ farmId, userId });
       executedTools.push({ toolName: "getMyFarmActivities", result: actData });
+      language = isBanglaMessage(message) ? "bn" : "en";
 
       if (actData.error) {
-        answer = `খামারের কার্যক্রম অনুসন্ধানে ত্রুটি হয়েছে: ${actData.error}`;
+        answer = language === "bn"
+          ? "আপনার খামারের কার্যক্রম এখন পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।"
+          : "Your farm activities are currently unavailable. Please try again later.";
       } else {
         const pending = actData.activities.filter((a) => a.status === "PENDING" || a.status === "IN_PROGRESS");
         sources.push("Krishi Mama Farm Activity Tracker");
         sources.push("DAE & BAMIS Official Crop Calendar Schedule");
-        dataDate = new Date().toISOString().slice(0, 10);
         dataQuality = "verified";
         provenance.push("My Farm Operational Registry");
 
         if (pending.length === 0) {
-          answer = `আপনার খামার "${actData.farmName}"-এর জন্য বর্তমানে কোনো বকেয়া বা অপেক্ষমাণ কৃষি কাজ নেই। সকল নির্ধারিত কাজ সম্পন্ন বা পরবর্তী পর্যায়ের অপেক্ষায় রয়েছে।`;
+          answer = language === "bn"
+            ? `আপনার খামার "${actData.farmName}"-এর জন্য বর্তমানে কোনো বকেয়া বা অপেক্ষমাণ কাজ নেই।`
+            : `There are no pending or in-progress activities for your farm "${actData.farmName}".`;
         } else {
           const taskList = pending
             .slice(0, 5)
-            .map((t, idx) => `${idx + 1}. ${t.title} (নির্ধারিত তারিখ: ${t.scheduledDate}, অবস্থা: ${t.status === "IN_PROGRESS" ? "চলমান" : "অপেক্ষমাণ"})`)
+            .map((t, idx) => language === "bn"
+              ? `${idx + 1}. ${t.title} (নির্ধারিত তারিখ: ${t.scheduledDate || "উল্লেখ নেই"}, অবস্থা: ${t.status === "IN_PROGRESS" ? "চলমান" : "অপেক্ষমাণ"})`
+              : `${idx + 1}. ${t.title} (due: ${t.scheduledDate || "not specified"}, status: ${t.status === "IN_PROGRESS" ? "in progress" : "pending"})`)
             .join("\n");
-          answer = `আপনার খামার "${actData.farmName}"-এর আসন্ন ও করণীয় কৃষি কার্যক্রমসমূহ:\n${taskList}\n\nপরামর্শ: সময়মতো কাজগুলো সম্পন্ন করে 'সম্পন্ন' হিসেবে চিহ্নিত করুন যাতে ফসল চক্রের সঠিক অগ্রগতি বজায় থাকে।`;
+          answer = language === "bn"
+            ? `আপনার খামার "${actData.farmName}"-এর অপেক্ষমাণ কাজ:\n${taskList}\n\nকাজ সম্পন্ন হলে নিজে থেকে অবস্থা হালনাগাদ করুন।`
+            : `Pending activities for your farm "${actData.farmName}":\n${taskList}\n\nUpdate an activity yourself after completing it.`;
         }
       }
       return {
@@ -106,7 +116,8 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         dataDate,
         dataQuality,
         provenance,
-        limitations: ["কৃষি কাজের সময়সূচি প্রকল্পভিত্তিক আনুমানিক হিসাব। স্থানীয় বৃষ্টিপাত ও মাঠের অবস্থা পর্যবেক্ষণ করে চূড়ান্ত সিদ্ধান্ত নিন।"],
+        limitations: [language === "bn" ? "তালিকাটি সংরক্ষিত খামার কার্যক্রম থেকে এসেছে; এটি মাঠের বর্তমান অবস্থা যাচাই করে না।" : "This list comes from saved farm activities and does not verify current field conditions."],
+        language,
         modelUsed: "deterministic-farm-grounded-engine",
       };
     }
@@ -114,33 +125,47 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     if (
       normMessage.includes("পর্যায়") ||
       normMessage.includes("বৃদ্ধি") ||
+      normMessage.includes("growth") ||
       normMessage.includes("স্টেজ") ||
       normMessage.includes("stage") ||
       normMessage.includes("দিন") ||
       normMessage.includes("বয়স") ||
       normMessage.includes("lifecycle")
+      || normMessage.includes("irrigat")
+      || normMessage.includes("water requirement")
     ) {
       const lifeData = await toolExecutors.getMyFarmLifecycle({ farmId, userId });
       executedTools.push({ toolName: "getMyFarmLifecycle", result: lifeData });
+      language = isBanglaMessage(message) ? "bn" : "en";
 
       if (lifeData.error) {
-        answer = `খামারের পর্যায় অনুসন্ধানে ত্রুটি হয়েছে: ${lifeData.error}`;
+        answer = language === "bn"
+          ? "আপনার খামারের ফসলের পর্যায় এখন নির্ধারণ করা যাচ্ছে না। রোপণের তারিখ ও ফসলের তথ্য যাচাই করুন।"
+          : "The crop stage for your farm cannot currently be determined. Check the planting date and crop details.";
       } else {
         sources.push("BAMIS Agro-Meteorological Crop Calendar");
         sources.push("BRRI / BARI Research Bulletins");
-        dataDate = new Date().toISOString().slice(0, 10);
         dataQuality = "verified";
         provenance.push(lifeData.provenance?.publisher || "BAMIS & DAE Official Crop Calendar");
 
         const cur = lifeData.currentStage;
         const nxt = lifeData.nextStage;
-        answer = `আপনার খামার "${lifeData.farmName}"-এর বর্তমান ফসলের অবস্থা:\n` +
-          `- ফসল: ${lifeData.cropName} (${lifeData.season || "মৌসুম"})\n` +
-          `- রোপণ/বপনের তারিখ: ${lifeData.plantingDate || "অনুল্লেখিত"}\n` +
-          `- ফসলের বর্তমান বয়স: ${lifeData.daysSincePlanting ? `${lifeData.daysSincePlanting} দিন` : "অনির্ধারিত"}\n` +
-          (cur ? `- বর্তমান বৃদ্ধি পর্যায়: ${cur.stageNameBn} (${cur.stageNameEn})\n  - সম্ভাব্য স্থায়িত্ব: ${cur.estimatedStartDate} থেকে ${cur.estimatedEndDate}\n  - পানির চাহিদা: ${cur.waterRequirementMm} মিমি\n` : "- বর্তমান পর্যায়: হিসাব করা সম্ভব হয়নি।\n") +
-          (nxt ? `- পরবর্তী পর্যায়: ${nxt.stageNameBn} (আনুমানিক শুরু: ${nxt.estimatedStartDate})\n` : "") +
-          `\nসরকারি উৎস: বামিস ও কৃষি সম্প্রসারণ অধিদপ্তর।`;
+        const days = Number.isFinite(lifeData.daysSincePlanting) ? lifeData.daysSincePlanting : null;
+        answer = language === "bn"
+          ? `আপনার খামার "${lifeData.farmName}"-এর ফসলের পর্যায় (ক্যালেন্ডারভিত্তিক অনুমান):\n` +
+            `- ফসল: ${lifeData.cropName || "উল্লেখ নেই"}${lifeData.season ? ` (${lifeData.season})` : ""}\n` +
+            `- রোপণের তারিখ: ${lifeData.plantingDate || "উল্লেখ নেই"}\n` +
+            `- রোপণের পর দিন: ${days == null ? "নির্ধারণ করা যায়নি" : `${days} দিন`}\n` +
+            (cur ? `- বর্তমান পর্যায়: ${cur.stageNameBn || cur.stageNameEn}\n  - আনুমানিক তারিখ: ${cur.estimatedStartDate || "উল্লেখ নেই"} থেকে ${cur.estimatedEndDate || "উল্লেখ নেই"}\n` : "- বর্তমান পর্যায় নির্ধারণ করা যায়নি।\n") +
+            (nxt ? `- পরবর্তী পর্যায়: ${nxt.stageNameBn || nxt.stageNameEn} (আনুমানিক ${nxt.estimatedStartDate || "তারিখ নেই"})\n` : "") +
+            "\nতারিখগুলো ক্যালেন্ডারভিত্তিক অনুমান; মাঠের ফসল দেখে মিলিয়ে নিন।"
+          : `Crop stage for your farm "${lifeData.farmName}" (calendar-based estimate):\n` +
+            `- Crop: ${lifeData.cropName || "not specified"}${lifeData.season ? ` (${lifeData.season})` : ""}\n` +
+            `- Planting date: ${lifeData.plantingDate || "not specified"}\n` +
+            `- Days since planting: ${days == null ? "unavailable" : days}\n` +
+            (cur ? `- Current stage: ${cur.stageNameEn || cur.stageNameBn}\n  - Estimated dates: ${cur.estimatedStartDate || "not specified"} to ${cur.estimatedEndDate || "not specified"}\n` : "- Current stage could not be determined.\n") +
+            (nxt ? `- Next stage: ${nxt.stageNameEn || nxt.stageNameBn} (estimated ${nxt.estimatedStartDate || "date unavailable"})\n` : "") +
+            "\nDates are calendar-based estimates; compare them with the crop in the field.";
       }
       return {
         answer,
@@ -149,7 +174,8 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         dataDate,
         dataQuality,
         provenance,
-        limitations: ["বৃদ্ধির পর্যায়গুলো রোপণ তারিখ থেকে সাধারণ সময়কাল হিসাব করে তৈরি আনুমানিক অভিক্ষেপ। প্রকৃত বৃদ্ধির হার স্থানীয় তাপমাত্রা ও মাটির ওপর নির্ভর করে।"],
+        limitations: [language === "bn" ? "পর্যায় ও তারিখ ক্যালেন্ডারভিত্তিক অনুমান; এগুলো মাঠ পর্যবেক্ষণের বিকল্প নয়।" : "Stages and dates are calendar-based estimates, not a substitute for field observation."],
+        language,
         modelUsed: "deterministic-farm-grounded-engine",
       };
     }
@@ -159,16 +185,28 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
       normMessage.includes("আর্দ্রতা") ||
       normMessage.includes("সবুজতা") ||
       normMessage.includes("স্যাটেলাইট") ||
-      normMessage.includes("আবহাওয়া")
+      normMessage.includes("আবহাওয়া") ||
+      normMessage.includes("environment") ||
+      normMessage.includes("soil moisture") ||
+      normMessage.includes("vegetation") ||
+      normMessage.includes("satellite") ||
+      normMessage.includes("climate") ||
+      normMessage.includes("rainfall") ||
+      normMessage.includes("weather") ||
+      normMessage.includes("ndvi") ||
+      normMessage.includes("evi")
     ) {
       const envData = await toolExecutors.getMyFarmEnvironmentalContext({ farmId, userId });
       executedTools.push({ toolName: "getMyFarmEnvironmentalContext", result: envData });
+      language = isBanglaMessage(message) ? "bn" : "en";
 
       if (envData.error) {
-        answer = `পরিবেশগত উপাত্ত অনুসন্ধানে ত্রুটি হয়েছে: ${envData.error}`;
+        answer = language === "bn"
+          ? "এই খামারের পরিবেশগত উপাত্ত এখন পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।"
+          : "Environmental observations for this farm are currently unavailable. Please try again later.";
       } else {
         sources.push("NASA GPM IMERG Final V07", "NASA SMAP (SPL3SMP_E)", "NASA MODIS (MOD13Q1)", "NASA POWER (2001-2025)");
-        dataDate = envData.environmentalContext?.precipitation?.observationDate || envData.environmentalContext?.soilMoistureSurface?.date || "উপাত্তের তারিখ অনুপলব্ধ";
+        dataDate = envData.environmentalContext?.precipitation?.observationDate || envData.environmentalContext?.soilMoistureSurface?.date || null;
         dataQuality = "grounded";
         provenance.push("NASA Earth Science Data Systems");
         limitations.push(envData.scientificSafeguards.rootZoneDisclaimer);
@@ -180,23 +218,33 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         const clim = envData.environmentalContext?.climateBaseline;
         const gpm = envData.environmentalContext?.precipitation;
         const dailyRain = gpm?.dailySummary;
-        const smValue = Number.isFinite(sm?.soilMoisture) ? sm.soilMoisture.toFixed(4) + " m³/m³" : "মান নেই";
-        const smQuality = sm?.retrievalQualityFlag ?? "অজানা";
-        const vegValue = Number.isFinite(veg?.ndvi) ? veg.ndvi.toFixed(3) : "উপাত্ত নেই";
-        const vegEvi = Number.isFinite(veg?.evi) ? veg.evi.toFixed(3) : "উপাত্ত নেই";
-        const climateRain = clim?.annualRainfallTotalMm ?? "উপাত্ত নেই";
+        const smValue = Number.isFinite(sm?.soilMoisture) ? sm.soilMoisture.toFixed(4) + " m³/m³" : language === "bn" ? "উপাত্ত অনুপলব্ধ" : "unavailable";
+        const smQuality = sm?.retrievalQualityFlag ?? (language === "bn" ? "অজানা" : "unknown");
+        const vegValue = Number.isFinite(veg?.ndvi) ? veg.ndvi.toFixed(3) : language === "bn" ? "উপাত্ত অনুপলব্ধ" : "unavailable";
+        const vegEvi = Number.isFinite(veg?.evi) ? veg.evi.toFixed(3) : language === "bn" ? "উপাত্ত অনুপলব্ধ" : "unavailable";
+        const climateRain = Number.isFinite(clim?.annualRainfallTotalMm) ? clim.annualRainfallTotalMm : null;
+        const validIntervals = Number.isInteger(dailyRain?.validIntervals) ? dailyRain.validIntervals : null;
+        const noDate = language === "bn" ? "তারিখ অনুপলব্ধ" : "date unavailable";
         const dailyRainValue = dailyRain?.completeness === "complete" && dailyRain.validIntervals === 48
-          ? dailyRain.totalPrecipitationMm + " মিমি"
-          : "অসম্পূর্ণ বা অনুপস্থিত; দৈনিক মোট প্রকাশ করা হয়নি";
+          ? language === "bn" ? `${dailyRain.totalPrecipitationMm} মিমি` : `${dailyRain.totalPrecipitationMm} mm`
+          : language === "bn" ? "অসম্পূর্ণ বা অনুপস্থিত; মোট প্রকাশ করা হয়নি" : "incomplete or unavailable; total withheld";
+        const intervalText = validIntervals == null
+          ? (language === "bn" ? "বৈধ ব্যবধানের সংখ্যা অনুপলব্ধ" : "valid interval count unavailable")
+          : language === "bn" ? `${validIntervals}/48 বৈধ ব্যবধান` : `${validIntervals}/48 valid intervals`;
 
-        answer = `আপনার খামার "${envData.farmName}" (${envData.district}${envData.upazila ? `, ${envData.upazila}` : ""})-এর নাসা পরিবেশগত পর্যবেক্ষণ:\n` +
-          `- GPM IMERG Final V07 বৃষ্টিপাত: ${dailyRainValue}; পর্যবেক্ষণ ${dailyRain?.dateLabel || "উপাত্ত নেই"}, বৈধ ব্যবধান ${dailyRain?.validIntervals ?? 0}/48, স্থানিক স্কেল ~0.1°।\n` +
-          `- মাটির আর্দ্রতা (NASA SMAP SPL3SMP_E, ০-৫ সেমি): ${smValue}; পর্যবেক্ষণ ${sm?.date || "উপাত্ত নেই"}, মান পতাকা ${smQuality}, গুণমান ${sm?.qualityClassification || "অজানা"}।\n` +
-          `- উদ্ভিদ সূচক (NASA MODIS MOD13Q1.061): NDVI ${vegValue}, EVI ${vegEvi}; পর্যবেক্ষণ ${veg?.date || "উপাত্ত নেই"}, গুণমান ${veg?.qualityClassification || "অজানা"}, ২৫০ মিটার পিক্সেল।\n` +
-          `- NASA POWER 2001–2025 ঐতিহাসিক জলবায়ু ভিত্তিরেখা: বার্ষিক বৃষ্টিপাত ${climateRain} মিমি; এটি লাইভ আবহাওয়া বা পূর্বাভাস নয়।\n\n` +
-          `বৈজ্ঞানিক সতর্কতা:\n` +
-          `- SMAP কেবল মাটির ওপরের ০-৫ সেমির আর্দ্রতা মাপতে পারে। গাছের মূল অঞ্চলের জন্য ক্ষেত পরীক্ষা জরুরি।\n` +
-          `- MODIS আঞ্চলিক ক্যানোপি সবুজতা নির্দেশ করে; এটি রোগ নির্ণয় বা নির্দিষ্ট খামারের প্রত্যক্ষ পরিমাপ নয়। GPM-ও আঞ্চলিক গ্রিড অনুমান, খামারের বৃষ্টিমাপক নয়।`;
+        answer = language === "bn"
+          ? `আপনার খামার "${envData.farmName}" (${envData.district}${envData.upazila ? `, ${envData.upazila}` : ""})-এর জন্য উপলভ্য নাসা পর্যবেক্ষণ:\n` +
+            `- GPM IMERG Final V07 বৃষ্টি: ${dailyRainValue}; ${dailyRain?.dateLabel || noDate}; ${intervalText}।\n` +
+            `- SMAP উপরিভাগের আর্দ্রতা (০–৫ সেমি): ${smValue}; ${sm?.date || noDate}; মান পতাকা ${smQuality}, গুণমান ${sm?.qualityClassification || "অজানা"}।\n` +
+            `- MODIS উদ্ভিদ সূচক: NDVI ${vegValue}, EVI ${vegEvi}; ${veg?.date || noDate}; গুণমান ${veg?.qualityClassification || "অজানা"}।\n` +
+            `- NASA POWER ঐতিহাসিক জলবায়ু: বার্ষিক বৃষ্টির মান ${climateRain == null ? "উপাত্ত অনুপলব্ধ" : `${climateRain} মিমি`}। এটি লাইভ আবহাওয়া নয়।\n\n` +
+            "GPM, SMAP ও MODIS আঞ্চলিক স্যাটেলাইট গ্রিডের তথ্য, খামারের সরাসরি সেন্সর নয়। SMAP মূল অঞ্চলের আর্দ্রতা দেখায় না; NDVI/EVI রোগ নির্ণয় নয়।"
+          : `Available NASA observations for your farm "${envData.farmName}" (${envData.district}${envData.upazila ? `, ${envData.upazila}` : ""}):\n` +
+            `- GPM IMERG Final V07 rainfall: ${dailyRainValue}; ${dailyRain?.dateLabel || noDate}; ${intervalText}.\n` +
+            `- SMAP surface moisture (0–5 cm): ${smValue}; ${sm?.date || noDate}; flag ${smQuality}, quality ${sm?.qualityClassification || "unknown"}.\n` +
+            `- MODIS vegetation indices: NDVI ${vegValue}, EVI ${vegEvi}; ${veg?.date || noDate}; quality ${veg?.qualityClassification || "unknown"}.\n` +
+            `- NASA POWER historical climate: annual rainfall ${climateRain == null ? "unavailable" : `${climateRain} mm`}; this is not live weather.\n\n` +
+            "GPM, SMAP, and MODIS are regional satellite-grid products, not direct farm sensors. SMAP does not represent root-zone moisture, and NDVI/EVI are not disease diagnoses.";
       }
       return {
         answer,
@@ -206,6 +254,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         dataQuality,
         provenance,
         limitations,
+        language,
         modelUsed: "deterministic-farm-grounded-engine",
       };
     }
@@ -219,24 +268,37 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     ) {
       const farmData = await toolExecutors.getMyFarmDetails({ farmId, userId });
       executedTools.push({ toolName: "getMyFarmDetails", result: farmData });
+      language = isBanglaMessage(message) ? "bn" : "en";
 
       if (farmData.error) {
-        answer = `খামারের বিবরণ অনুসন্ধানে ত্রুটি হয়েছে: ${farmData.error}`;
+        answer = language === "bn"
+          ? "আপনার খামারের বিবরণ এখন পাওয়া যাচ্ছে না।"
+          : "Your farm details are currently unavailable.";
       } else {
         sources.push("Krishi Mama My Farm Registry");
-        dataDate = new Date().toISOString().slice(0, 10);
         dataQuality = "verified";
         provenance.push("Farmer Authenticated Profile");
 
-        answer = `আপনার খামারের বিবরণ:\n` +
-          `- খামারের নাম: ${farmData.name}\n` +
-          `- অবস্থান: ${farmData.districtName || farmData.districtCode}, উপজেলা: ${farmData.upazila || "অনুল্লেখিত"}\n` +
-          `- ফসল: ${farmData.cropName || farmData.cropCode} (জাত: ${farmData.variety})\n` +
-          `- জমির আয়তন: ${farmData.areaAcre ? `${farmData.areaAcre} একর` : "অনুল্লেখিত"}\n` +
-          `- মাটির ধরন: ${farmData.soilType || "সাধারণ দোআঁশ"}\n` +
-          `- সেচের উৎস: ${farmData.waterSource || "বৃষ্টি ও সেচ"}\n` +
-          `- রোপণ তারিখ: ${farmData.plantingDate || "অনুল্লেখিত"}\n` +
-          `- অবস্থা: ${farmData.status === "ACTIVE" ? "সক্রিয়" : farmData.status}`;
+        const unavailable = language === "bn" ? "উল্লেখ নেই" : "not specified";
+        answer = language === "bn"
+          ? `আপনার খামারের সংরক্ষিত বিবরণ:\n` +
+            `- নাম: ${farmData.name || unavailable}\n` +
+            `- অবস্থান: ${farmData.districtName || farmData.districtCode || unavailable}${farmData.upazila ? `, ${farmData.upazila}` : ""}\n` +
+            `- ফসল: ${farmData.cropName || farmData.cropCode || unavailable}\n` +
+            `- জাত: ${farmData.variety && farmData.variety !== "Not specified" ? farmData.variety : unavailable}\n` +
+            `- জমির আয়তন: ${farmData.landArea == null ? unavailable : `${farmData.landArea} ${farmData.landUnit || ""}`}\n` +
+            `- মাটির ধরন: ${farmData.soilType || unavailable}\n` +
+            `- সেচের উৎস: ${farmData.waterSource || unavailable}\n` +
+            `- রোপণের তারিখ: ${farmData.plantingDate || unavailable}`
+          : `Saved details for your farm:\n` +
+            `- Name: ${farmData.name || unavailable}\n` +
+            `- Location: ${farmData.districtName || farmData.districtCode || unavailable}${farmData.upazila ? `, ${farmData.upazila}` : ""}\n` +
+            `- Crop: ${farmData.cropName || farmData.cropCode || unavailable}\n` +
+            `- Variety: ${farmData.variety && farmData.variety !== "Not specified" ? farmData.variety : unavailable}\n` +
+            `- Area: ${farmData.landArea == null ? unavailable : `${farmData.landArea} ${farmData.landUnit || ""}`}\n` +
+            `- Soil: ${farmData.soilType || unavailable}\n` +
+            `- Water source: ${farmData.waterSource || unavailable}\n` +
+            `- Planting date: ${farmData.plantingDate || unavailable}`;
       }
       return {
         answer,
@@ -245,7 +307,8 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         dataDate,
         dataQuality,
         provenance,
-        limitations: ["তথ্যগুলো খামার নিবন্ধনকালে কৃষকের প্রদত্ত উপাত্তের ওপর ভিত্তি করে প্রদর্শিত।"],
+        limitations: [language === "bn" ? "তথ্যগুলো আপনার সংরক্ষিত খামার প্রোফাইল থেকে এসেছে।" : "Details come from your saved farm profile."],
+        language,
         modelUsed: "deterministic-farm-grounded-engine",
       };
     }
@@ -257,6 +320,13 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     normMessage.includes("forecast") ||
     normMessage.includes("আবহাওয়া") ||
     normMessage.includes("weather") ||
+    normMessage.includes("seasonal") ||
+    normMessage.includes("outlook") ||
+    normMessage.includes("সাব-সিজন") ||
+    normMessage.includes("মৌসুমি") ||
+    normMessage.includes("মৌসুমী") ||
+    normMessage.includes("সপ্তাহ") ||
+    normMessage.includes("মাসিক") ||
     normMessage.includes("সতর্কতা") ||
     normMessage.includes("alert") ||
     normMessage.includes("warning") ||
@@ -274,12 +344,42 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     }
 
     const isBangla = /[\u0980-\u09FF]/.test(message);
-    const forecastData = await toolExecutors.getLocationWeatherForecast({ location: targetLoc, farmId, userId });
-    const alertsData = await toolExecutors.getActiveWeatherAlerts({ location: targetLoc, crop, farmId });
+    const forecastData = await toolExecutors.getLocationWeatherForecast({ location: targetLoc, farmId, userId })
+      .catch(() => ({ error: "WEATHER_UNAVAILABLE", current: null, location: null }));
+    const alertsData = await toolExecutors.getActiveWeatherAlerts({ location: targetLoc, crop, farmId, userId })
+      .catch(() => ({ error: "WEATHER_RISK_UNAVAILABLE", overallRiskLevel: "DATA_INSUFFICIENT", alertsCount: 0, officialWarningsCount: 0, alerts: [] }));
     executedTools.push({ toolName: "getLocationWeatherForecast", result: forecastData });
     executedTools.push({ toolName: "getActiveWeatherAlerts", result: alertsData });
 
-    sources.push("Open-Meteo High-Resolution Numerical Forecast");
+    const wantsWeeklyOutlook = /week|weekly|সপ্তাহ|সাব-সিজন/.test(normMessage);
+    const wantsSeasonalOutlook = /season|monthly|month|মৌসুম|মাসিক/.test(normMessage);
+    let weeklyOutlookData = null;
+    let seasonalOutlookData = null;
+    if (wantsWeeklyOutlook || wantsSeasonalOutlook) {
+      const [weeklyResult, seasonalResult] = await Promise.all([
+        wantsWeeklyOutlook
+          ? toolExecutors.getWeeklyWeatherOutlook({ location: targetLoc, farmId, userId }).catch(() => ({ dataStatus: "DATA_UNAVAILABLE", weeklyTendencies: [] }))
+          : Promise.resolve(null),
+        wantsSeasonalOutlook
+          ? toolExecutors.getSeasonalCropOutlook({ location: targetLoc, crop, farmId, userId }).catch(() => ({ dataStatus: "DATA_UNAVAILABLE", monthlyOutlooks: [] }))
+          : Promise.resolve(null),
+      ]);
+      weeklyOutlookData = weeklyResult;
+      seasonalOutlookData = seasonalResult;
+      if (weeklyResult) {
+        executedTools.push({ toolName: "getWeeklyWeatherOutlook", result: weeklyResult });
+        sources.push(weeklyResult.source || "Open-Meteo Seasonal Forecast API");
+        if (weeklyResult.disclaimer) limitations.push(weeklyResult.disclaimer);
+      }
+      if (seasonalResult) {
+        executedTools.push({ toolName: "getSeasonalCropOutlook", result: seasonalResult });
+        sources.push(seasonalResult.source || "Open-Meteo Seasonal Forecast API");
+        if (seasonalResult.guidanceNotice) limitations.push(seasonalResult.guidanceNotice);
+      }
+      provenance.push("Open-Meteo Seasonal Forecast API; periods are regional outlooks, not local daily forecasts");
+    }
+
+    sources.push("Open-Meteo Weather Forecast API");
     const hasOfficialBulletins = (alertsData.officialWarningsCount > 0) ||
       (Array.isArray(alertsData.alerts) && alertsData.alerts.some(a => a.isGovernmentNotice));
     if (hasOfficialBulletins) {
@@ -300,7 +400,12 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
 
     dataDate = cur?.date || null;
     dataQuality = isDataInsufficient ? "insufficient_data" : "verified";
-    provenance.push("Open-Meteo API (Asia/Dhaka) & BMD Hazard Criteria");
+    provenance.push("Open-Meteo Forecast API (Asia/Dhaka) & Krishi Mama agricultural risk criteria");
+    if (alertsData.officialWarningsStatus === "UNAVAILABLE") {
+      limitations.push(isBangla
+        ? "সরকারি সতর্কতার তথ্যভান্ডার অনুপলব্ধ; কোনো বুলেটিন না ফেরাকে সতর্কতা নেই বলে ধরে নেবেন না।"
+        : "Official warning store unavailable; an empty result must not be interpreted as no government warning.");
+    }
     limitations.push(
       isBangla
         ? "১-৭ দিনের পূর্বাভাস সংখ্যাভিত্তিক আবহাওয়া মডেলের ওপর ভিত্তি করে তৈরি। বর্ধিত ও মৌসুমী দৃষ্টিভঙ্গিতে স্বাভাবিক অনিশ্চয়তা রয়েছে।"
@@ -348,7 +453,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
 
       if (isBangla) {
         weatherSummary = `**${locNameBn}-এর আবহাওয়া পূর্বাভাস ও কৃষি সতর্কতা:**\n` +
-          `- বর্তমান অবস্থা: ${conditionStr} (সর্বোচ্চ: ${cur.temperatureMaxC}°সে, সর্বনিম্ন: ${cur.temperatureMinC}°সে)\n` +
+          `- আজকের পূর্বাভাস: ${conditionStr} (সর্বোচ্চ: ${cur.temperatureMaxC}°সে, সর্বনিম্ন: ${cur.temperatureMinC}°সে)\n` +
           `- আজকের সম্ভাব্য বৃষ্টি: ${rainStrBn} (সম্ভাবনা: ${rainProbStrBn})\n` +
           `- বাতাসের গতি: ${windStrBn}\n` +
           `- সামগ্রিক কৃষি ঝুঁকি: ${riskLabelBn}\n`;
@@ -362,7 +467,9 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
             weatherSummary += `${i + 1}. ${sourceBadge} **${a.titleBn || a.title}**\n   পরামর্শ: ${a.adviceBn || a.advice}\n`;
           });
         } else {
-          weatherSummary += `\nবর্তমান প্রাপ্ত ৭ দিনের পূর্বাভাসের ভিত্তিতে কোনো সক্রিয় উচ্চ বা তীব্র কৃষি আবহাওয়া সতর্কতা নেই।`;
+          weatherSummary += alertsData.officialWarningsStatus === "UNAVAILABLE"
+            ? `\nসরকারি সতর্কতার তথ্যভান্ডার অনুপলব্ধ; সরকারি সতর্কতা যাচাই করা যায়নি।`
+            : `\nবর্তমান প্রাপ্ত ৭ দিনের পূর্বাভাসের ভিত্তিতে কোনো সক্রিয় উচ্চ বা তীব্র কৃষি আবহাওয়া সতর্কতা নেই।`;
         }
 
         if (alertsData.precautions && alertsData.precautions.length > 0) {
@@ -370,7 +477,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         }
       } else {
         weatherSummary = `**Weather Forecast & Agricultural Risks for ${locNameEn}:**\n` +
-          `- Current Conditions: ${conditionStr} (Max: ${cur.temperatureMaxC}°C, Min: ${cur.temperatureMinC}°C)\n` +
+          `- Today's forecast: ${conditionStr} (Max: ${cur.temperatureMaxC}°C, Min: ${cur.temperatureMinC}°C)\n` +
           `- Expected Rain Today: ${rainStrEn} (Probability: ${rainProbStrEn})\n` +
           `- Peak Wind Speed: ${windStrEn}\n` +
           `- Overall Agricultural Risk: ${riskLabelEn}\n`;
@@ -384,13 +491,62 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
             weatherSummary += `${i + 1}. ${sourceBadge} **${a.title}**\n   Advice: ${a.advice}\n`;
           });
         } else {
-          weatherSummary += `\nNo active high or severe agricultural weather hazards indicated in the current 7-day forecast.`;
+          weatherSummary += alertsData.officialWarningsStatus === "UNAVAILABLE"
+            ? `\nThe official warning store is unavailable; government warnings could not be checked.`
+            : `\nNo active high or severe agricultural weather hazards indicated in the current 7-day forecast.`;
         }
 
         if (alertsData.precautions && alertsData.precautions.length > 0) {
           weatherSummary += `\n**Field Operational Guidance:**\n` + alertsData.precautions.slice(0, 2).map(p => `- ${p}`).join("\n");
         }
       }
+    }
+
+    const farmContext = alertsData.farmContext || forecastData.farmContext;
+    if (farmContext) {
+      const cropStage = farmContext.cropStage
+        ? (isBangla ? farmContext.cropStage.stageNameBn : farmContext.cropStage.stageNameEn)
+        : (isBangla ? "পর্যায় নির্ধারিত নয়" : "stage unavailable");
+      const farmLine = isBangla
+        ? `খামারভিত্তিক প্রসঙ্গ: ${farmContext.farmName || "নামহীন খামার"} · ${farmContext.upazila || ""}, ${farmContext.district || farmContext.districtCode || locNameBn}; নির্বাচিত ফসল ${farmContext.cropCode || "নির্বাচিত হয়নি"}; পর্যায় ${cropStage}${farmContext.cropStage ? " (সরকারি ক্যালেন্ডার থেকে আনুমানিক)" : ""}. আবহাওয়া আঞ্চলিক গ্রিডের তথ্য, খামার-পর্যায়ের পরিমাপ নয়।\n\n`
+        : `Farm context: ${farmContext.farmName || "Unnamed farm"} · ${farmContext.upazila || ""}, ${farmContext.district || farmContext.districtCode || locNameEn}; selected crop ${farmContext.cropCode || "not selected"}; stage ${cropStage}${farmContext.cropStage ? " (estimated from the official calendar)" : ""}. Weather is regional grid data, not a farm-level measurement.\n\n`;
+      weatherSummary = `${farmLine}${weatherSummary}`;
+    }
+
+    if (weeklyOutlookData || seasonalOutlookData) {
+      const periodLines = [];
+      if (weeklyOutlookData) {
+        const available = (weeklyOutlookData.weeklyTendencies || []).filter(period => period.status === "AVAILABLE");
+        periodLines.push(isBangla ? "\n৬-সপ্তাহের আঞ্চলিক দৃষ্টিভঙ্গি:" : "\nSix-week regional outlook:");
+        if (!available.length) {
+          periodLines.push(isBangla ? "- উপাত্ত অপ্রাপ্য; কোনো মান অনুমান করা হয়নি।" : "- Unavailable; no values were inferred.");
+        } else {
+          for (const week of available) {
+            const rainfall = Number.isFinite(week.expectedRainfallMeanMm)
+              ? `${week.expectedRainfallMeanMm} mm (${week.rainfallRangeMm?.min ?? "—"}–${week.rainfallRangeMm?.max ?? "—"} mm)`
+              : (isBangla ? "বৃষ্টি অনুপলব্ধ" : "rain unavailable");
+            periodLines.push(`- ${week.week}: ${rainfall}${Number.isFinite(week.expectedTempMeanC) ? `; ${week.expectedTempMeanC}°C mean` : ""}.`);
+          }
+        }
+      }
+      if (seasonalOutlookData) {
+        const available = (seasonalOutlookData.monthlyOutlooks || []).filter(period => period.status === "AVAILABLE");
+        periodLines.push(isBangla ? "\n১–৩ মাসের আঞ্চলিক দৃষ্টিভঙ্গি:" : "\nOne-to-three-month regional outlook:");
+        if (!available.length) {
+          periodLines.push(isBangla ? "- উপাত্ত অপ্রাপ্য; কোনো মান অনুমান করা হয়নি।" : "- Unavailable; no values were inferred.");
+        } else {
+          for (const month of available) {
+            const rainfall = Number.isFinite(month.rainfallMeanMm)
+              ? `${month.rainfallMeanMm} mm (${month.rainfallRangeMm?.min ?? "—"}–${month.rainfallRangeMm?.max ?? "—"} mm)`
+              : (isBangla ? "বৃষ্টি অনুপলব্ধ" : "rain unavailable");
+            periodLines.push(`- ${month.window}: ${rainfall}${Number.isFinite(month.temperatureMeanC) ? `; ${month.temperatureMeanC}°C mean` : ""}.`);
+          }
+        }
+      }
+      periodLines.push(isBangla
+        ? "এগুলো Open-Meteo-এর আঞ্চলিক মডেল দৃষ্টিভঙ্গি; খামারভিত্তিক পূর্বাভাস বা ক্যালিব্রেটেড সম্ভাব্যতা নয়।"
+        : "These are regional Open-Meteo model outlooks, not farm-level forecasts or calibrated probabilities.");
+      weatherSummary += `\n${periodLines.join("\n")}`;
     }
 
     return {
@@ -536,7 +692,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     executedTools.push({ toolName: "getSoilMoistureLatest", result: smapData });
 
     sources.push("NASA SMAP SPL3SMP_E V006", "BARI / DAE Agricultural Extension Guidelines");
-    dataDate = smapData.date || "2024-01-03";
+    dataDate = smapData.date || null;
     dataQuality = smapData.qualityClassification || "recommended";
     provenance.push(smapData.provenance || "NASA SMAP Radiometer");
     limitations.push(
@@ -560,36 +716,37 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     };
   }
 
-  // 1. Check for Aman to Mustard or Boro to Aus transition / Handoff
-  if ((normMessage.includes("আমন") && normMessage.includes("সরিষা")) || normMessage.includes("হ্যান্ডঅফ") || normMessage.includes("handoff") || (normMessage.includes("বোরো") && normMessage.includes("আউশ"))) {
-    const isBoroAus = normMessage.includes("বোরো") && normMessage.includes("আউশ");
+  // 1. Summarize only actual stored historical transition results; do not turn them into forecast advice.
+  if ((normMessage.includes("আমন") && normMessage.includes("সরিষা")) || normMessage.includes("হ্যান্ডঅফ") || normMessage.includes("handoff") || (normMessage.includes("বোরো") && normMessage.includes("আউশ")) || (normMessage.includes("aman") && normMessage.includes("mustard")) || (normMessage.includes("boro") && normMessage.includes("aus"))) {
+    const isBoroAus = (normMessage.includes("বোরো") && normMessage.includes("আউশ")) || (normMessage.includes("boro") && normMessage.includes("aus"));
     const transition = isBoroAus ? "boro-aus" : "aman-mustard";
     const handoffData = await toolExecutors.getHandoffPlan({ transition, district: validDistrict });
     executedTools.push({ toolName: "getHandoffPlan", result: handoffData });
+    language = isBanglaMessage(message) ? "bn" : "en";
+    dataQuality = handoffData.error ? "unavailable" : "historical_descriptive";
+    if (handoffData.provenance) provenance.push(`Handoff planner: ${handoffData.provenance}`);
+    if (handoffData.yearsUsed != null) dataDate = `Historical sample: ${handoffData.yearsUsed} years`;
+    if (handoffData.scientificDisclaimer) limitations.push(handoffData.scientificDisclaimer);
+    if (handoffData.sampleSizeNote) limitations.push(handoffData.sampleSizeNote);
 
-    sources.push("Krishi Mama Handoff Window Planner (NASA POWER Reanalysis)");
-    dataDate = "2001-2024";
-    dataQuality = "statistically_verified";
-    provenance.push("NASA POWER Daily Historical Climate Grid & Python Statistical Engine");
-    limitations.push(handoffData.scientificDisclaimer);
-
-    if (transition === "aman-mustard") {
-      const calData = await toolExecutors.getCropCalendarAdvisory({ crop: "mustard", district: validDistrict });
-      executedTools.push({ toolName: "getCropCalendarAdvisory", result: calData });
-      sources.push("BAMIS (DAE) & BARI Research Bulletins");
-
-      answer = `কুমিল্লা জেলায় আমন ধান কাটার পর সরিষা বপন ও চাষের সমন্বিত বিশ্লেষণ:\n` +
-        `১. বপনের সরকারি সময়: ১ থেকে ১৫ নভেম্বর (কার্তিক মাসের মাঝামাঝি)।\n` +
-        `২. প্রস্তাবিত জাত: বারি সরিষা-১৪, বারি সরিষা-১৭ (জীবনকাল মাত্র ৮০ থেকে ৮৫ দিন)।\n` +
-        `৩. হ্যান্ডঅফ প্ল্যানারের ফলাফল: বিগত ২৪ বছরের উপাত্তে ১০০% ক্ষেত্রে ধান কাটার পর নিরাপদ ৩ দিনের শুকনো সময় পাওয়া গেছে।\n` +
-        `৪. অক্টোবরের বৃষ্টিপাত পরিবর্তন: শেষ ভাগের বৃষ্টিপাত গড়ে +৫৩.৫৬ মিমি বৃদ্ধি পেলেও পরিসংখ্যানগতভাবে এটি এখনো অপরিবর্তিত (Welch's t-test p=0.125)।\n\n` +
-        `পরামর্শ: আমন ধান দ্রুত কেটে মাটিতে জো থাকা অবস্থায় জমি প্রস্তুত করে ১৫ নভেম্বরের মধ্যে সরিষা বপন সম্পন্ন করলে সর্বোচ্চ ফলন পাওয়া যাবে।`;
+    if (handoffData.error) {
+      answer = language === "bn"
+        ? "এই ফসল পরিবর্তনের জন্য যাচাইকৃত ঐতিহাসিক পরিকল্পনা-তথ্য এখন পাওয়া যাচ্ছে না। তাই কোনো সময়, হার বা কাজের পরামর্শ দেওয়া হচ্ছে না।"
+        : "Validated historical planning data for this crop transition is currently unavailable. No timing, rate, or action recommendation is provided.";
     } else {
-      answer = `বোরো ধান কাটার পর আউশ চাষের জন্য হ্যান্ডঅফ উইন্ডো প্ল্যানারের ঐতিহাসিক ফলাফল:\n` +
-        `- ঐতিহাসিক সুযোগের হার: ${handoffData.historicalOpportunityRate} (২৪ বছরের মধ্যে ২০ বছর অনুকূল ছিল)।\n` +
-        `- ঝুঁকিপূর্ণ বছর: ২০০২, ২০০৪, ২০১৮ এবং ২০২০ সালে প্রাক-বর্ষার ভারি কালবৈশাখী বৃষ্টির কারণে জমি প্রস্তুত ব্যাহত হয়েছিল।\n` +
-        `- উপযুক্ত উইন্ডো: ১৫ এপ্রিল থেকে ১০ মে।\n\n` +
-        `পরামর্শ: এপ্রিলের শেষ বা মে মাসের প্রথম সপ্তাহের মধ্যে জমি প্রস্তুত ও চারা রোপণ সম্পন্ন করা নিরাপদ।`;
+      sources.push("Krishi Mama Handoff Window Planner");
+      const title = isBoroAus ? (language === "bn" ? "বোরো–আউশ" : "Boro–Aus") : (language === "bn" ? "আমন–সরিষা" : "Aman–Mustard");
+      const rate = handoffData.historicalOpportunityRate || (language === "bn" ? "অনুপলব্ধ" : "unavailable");
+      const window = handoffData.planningWindow || (language === "bn" ? "উল্লেখ নেই" : "not specified");
+      const years = handoffData.yearsUsed == null
+        ? (language === "bn" ? "নমুনার বছর অনুপলব্ধ" : "sample years unavailable")
+        : language === "bn" ? `${handoffData.yearsUsed} বছরের ঐতিহাসিক নমুনা` : `${handoffData.yearsUsed}-year historical sample`;
+      const caveat = language === "bn"
+        ? "এটি অতীতের বর্ণনামূলক পরিকল্পনা-তথ্য, আসন্ন আবহাওয়ার পূর্বাভাস নয়; পরিকল্পনা-উইন্ডোর উৎস যাচাই বাকি থাকতে পারে। এটিকে একা চাষের সিদ্ধান্ত হিসেবে ব্যবহার করবেন না।"
+        : "This is historical descriptive planning information, not a forecast; the planning-window source may still require verification. Do not use it alone to make a crop decision.";
+      answer = language === "bn"
+        ? `${title} পরিবর্তনের সংরক্ষিত ঐতিহাসিক পরিকল্পনা-তথ্য:\n- পরিকল্পনা-উইন্ডো: ${window}\n- ঐতিহাসিক সুযোগের হার: ${rate}\n- নমুনা: ${years}\n\n${caveat}`
+        : `Stored historical planning information for the ${title} transition:\n- Planning window: ${window}\n- Historical opportunity rate: ${rate}\n- Sample: ${years}\n\n${caveat}`;
     }
   }
   // 2. Check for Soil Moisture query (মাটির আর্দ্রতা / SMAP)
@@ -658,7 +815,7 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
     dataDate = gpmData.observationDate || null;
 
     const daily = gpmData.dailySummary;
-    const validIntervals = daily?.validIntervals ?? 0;
+    const validIntervals = Number.isInteger(daily?.validIntervals) ? daily.validIntervals : null;
     const isComplete = daily?.completeness === "complete" && validIntervals === 48 && Number.isFinite(daily?.totalPrecipitationMm);
     dataQuality = isComplete ? "complete_48_of_48" : "incomplete_or_unavailable";
     limitations.push(gpmData.limitation || "Regional ~0.1° grid estimate; not a farm rain-gauge measurement.");
@@ -674,18 +831,21 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         ? `${districtBn} জেলার জন্য যাচাইকৃত GPM IMERG বৃষ্টিপাতের পর্যবেক্ষণ বর্তমানে সংরক্ষিত নেই। কোনো মান অনুমান করা হচ্ছে না।`
         : `No validated GPM IMERG precipitation observations are stored for ${districtEn}. No value is inferred.`;
     } else {
+      const intervalText = validIntervals == null
+        ? (isBangla ? "বৈধ ব্যবধানের সংখ্যা অনুপলব্ধ" : "valid interval count unavailable")
+        : isBangla ? `${validIntervals}/48 বৈধ অর্ধঘণ্টা ব্যবধান` : `${validIntervals}/48 valid half-hour intervals`;
       const dailyValue = isComplete
         ? `${daily.totalPrecipitationMm.toFixed(2)} mm`
         : isBangla
-          ? `প্রকাশযোগ্য নয় (${validIntervals}/48 বৈধ অর্ধঘণ্টা ব্যবধান)`
-          : `withheld (${validIntervals}/48 valid half-hour intervals)`;
+          ? `প্রকাশযোগ্য নয় (${intervalText})`
+          : `withheld (${intervalText})`;
       answer = isBangla
         ? `NASA GPM IMERG Final V07-এর সংরক্ষিত ঐতিহাসিক পর্যবেক্ষণ অনুযায়ী ${districtBn} জেলার সর্বশেষ পর্যবেক্ষণ তারিখ ${gpmData.observationDate}।` +
-          `\nদৈনিক বৃষ্টিপাত: ${dailyValue}; বৈধ ব্যবধান ${validIntervals}/48।` +
+          `\nদৈনিক বৃষ্টিপাত: ${dailyValue}; ${intervalText}।` +
           `${ingestedText ? `\nডেটাবেসে অন্তর্ভুক্তির সময়: ${ingestedText}।` : ""}` +
           `\nএটি প্রায় ০.১° (~১০ কিমি) গ্রিডের আঞ্চলিক অনুমান, খামারের বৃষ্টিমাপক নয়; এটি লাইভ আবহাওয়া নয়।`
         : `According to the stored historical NASA GPM IMERG Final V07 record, the latest observation for ${districtEn} is dated ${gpmData.observationDate}.` +
-          `\nDaily precipitation: ${dailyValue}; valid intervals: ${validIntervals}/48.` +
+          `\nDaily precipitation: ${dailyValue}; ${intervalText}.` +
           `${ingestedText ? `\nDatabase ingestion time: ${ingestedText}.` : ""}` +
           `\nThis is a regional ~0.1° (~10 km) grid estimate, not a farm rain gauge or live weather.`;
     }
@@ -728,61 +888,73 @@ async function generateDeterministicFallback({ message, district = "cumilla", cr
         : `According to the 2001–2025 historical NASA POWER Daily Point record, mean annual rainfall for ${validDistrict} is ${meanMm.toFixed(2)} mm. This is a historical average, not a daily forecast.`;
     }
   }
-  // 5. Check for Mustard or specific Crop Calendar advisory (সরিষা / আমন / বোরো / আউশ নির্দেশিকা)
-  else if (normMessage.includes("সরিষা") || normMessage.includes("আমন") || normMessage.includes("বোরো") || normMessage.includes("আউশ") || normMessage.includes("ক্যালেন্ডার") || normMessage.includes("বপন")) {
-    let targetCrop = "mustard";
-    if (normMessage.includes("আমন")) targetCrop = "monsoon_aman";
-    else if (normMessage.includes("বোরো")) targetCrop = "boro_rice";
-    else if (normMessage.includes("আউশ")) targetCrop = "aus_rice";
+  // 5. Answer crop-calendar questions only from the existing district calendar response.
+  else if (normMessage.includes("সরিষা") || normMessage.includes("আমন") || normMessage.includes("বোরো") || normMessage.includes("আউশ") || normMessage.includes("ক্যালেন্ডার") || normMessage.includes("বপন") || normMessage.includes("mustard") || normMessage.includes("aman") || normMessage.includes("boro rice") || normMessage.includes("aus rice") || normMessage.includes("crop calendar") || normMessage.includes("sowing period") || normMessage.includes("planting period") || normMessage.includes("harvest period")) {
+    let targetCrop = crop && crop !== "all" ? crop : null;
+    if (normMessage.includes("আমন") || normMessage.includes("aman")) targetCrop = "monsoon_aman";
+    else if (normMessage.includes("বোরো") || normMessage.includes("boro")) targetCrop = "boro_rice";
+    else if (normMessage.includes("আউশ") || normMessage.includes("aus")) targetCrop = "aus_rice";
+    else if (normMessage.includes("সরিষা") || normMessage.includes("mustard")) targetCrop = "mustard";
+    if (!targetCrop) {
+      language = isBanglaMessage(message) ? "bn" : "en";
+      answer = language === "bn"
+        ? "কোন ফসলের পঞ্জিকা জানতে চান? আমন, বোরো, আউশ বা সরিষার নাম বলুন।"
+        : "Which crop calendar do you need? Please specify Aman, Boro, Aus, or mustard.";
+      dataQuality = "clarification_needed";
+      return { answer, executedTools, sources, dataDate: null, dataQuality, provenance, limitations, language, modelUsed: "deterministic-grounded-engine" };
+    }
 
     const calData = await toolExecutors.getCropCalendarAdvisory({ crop: targetCrop, district: validDistrict });
     executedTools.push({ toolName: "getCropCalendarAdvisory", result: calData });
+    language = isBanglaMessage(message) ? "bn" : "en";
+    sources.push(...(Array.isArray(calData.officialSources) && calData.officialSources.length
+      ? calData.officialSources
+      : calData.provenance ? [calData.provenance] : []));
+    dataQuality = calData.error ? "unavailable" : "official_calendar";
+    if (calData.provenance) provenance.push(calData.provenance);
+    limitations.push(language === "bn"
+      ? "পঞ্জিকার সময়সীমা সাধারণ নির্দেশনা; মাঠের অবস্থা ও স্থানীয় কৃষি কর্মকর্তার পরামর্শ মিলিয়ে নিন।"
+      : "Calendar periods are general guidance; consider field conditions and advice from a local agricultural officer.");
 
-    sources.push("BAMIS (DAE) & BRRI/BARI Research Bulletins");
-    dataDate = "Official 2024-2025 Edition";
-    dataQuality = "official_recommendation";
-    provenance.push(calData.provenance);
-    limitations.push("Official agro-ecological zone recommendations; regional microclimates may vary.");
-
-    if (targetCrop === "mustard") {
-      answer = `সরকারি নির্দেশিকা (বামিস ও বারি) অনুযায়ী সরিষা চাষের গুরুত্বপূর্ণ তথ্যাবলি:\n` +
-        `- বপনের উপযুক্ত সময়: ১ থেকে ১৫ নভেম্বর (কার্তিক মাসের মাঝামাঝি)।\n` +
-        `- অনুমোদিত উচ্চফলনশীল জাত: বারি সরিষা-১৪, বারি সরিষা-১৭, বারি সরিষা-১৮ (জীবনকাল ৮০ থেকে ৮৫ দিন)।\n` +
-        `- জমি প্রস্তুতি ও সেচ: আমন ধান কাটার পর মাটিতে পরিমিত আর্দ্রতা (জো) থাকা অবস্থায় দ্রুত চাষ দিতে হবে। ফুল আসার সময় (বপনের ২৫–৩০ দিন পর) হালকা সেচ অত্যন্ত জরুরি।\n` +
-        `- তাপমাত্রা সতর্কতা: তাপমাত্রা ১০° সেলসিয়াসের নিচে নামলে বৃদ্ধি ব্যাহত হতে পারে।\n\n` +
-        `উৎস: বাংলাদেশ কৃষি আবহাওয়া তথ্য সেবা (BAMIS) ও বাংলাদেশ কৃষি গবেষণা ইনস্টিটিউট (BARI)।`;
-    } else if (targetCrop === "monsoon_aman") {
-      answer = `সরকারি নির্দেশিকা অনুযায়ী কুমিল্লা অঞ্চলে রোপা আমন ধান চাষের সময়সূচি:\n` +
-        `- বীজতলায় বীজ বপন: ১৫ জুন থেকে ১৫ জুলাই।\n` +
-        `- জমিতে চারা রোপণ: ১৫ জুলাই থেকে ১৫ আগস্ট (২৫–৩০ দিনের সুস্থ চারা)।\n` +
-        `- ফসল কর্তন: নভেম্বর থেকে ডিসেম্বর।\n` +
-        `- প্রধান জাতসমূহ: ব্রি ধান৪৯, ব্রি ধান৭৫, ব্রি ধান৮৭।\n\n` +
-        `উৎস: বাংলাদেশ ধান গবেষণা ইনস্টিটিউট (BRRI) ও BAMIS।`;
+    if (calData.error) {
+      answer = language === "bn"
+        ? "এই ফসল ও জেলার জন্য যাচাইকৃত পঞ্জিকার তথ্য এখন পাওয়া যাচ্ছে না। কোনো তারিখ বা সুপারিশ অনুমান করা হয়নি।"
+        : "Verified calendar information for this crop and district is currently unavailable. No dates or recommendations were inferred.";
     } else {
-      answer = `সরকারি নির্দেশিকা অনুযায়ী ${calData.nameBn} চাষের তথ্যাবলি:\n` +
-        `- বপন/রোপণ সময়: ${calData.sowingPeriod}।\n` +
-        `- জীবনকাল: প্রায় ${calData.totalDurationDays} দিন।\n` +
-        `- অনুমোদিত জাতসমূহ: ${calData.typicalVarieties?.join(", ")}।\n\n` +
-        `উৎস: ${calData.provenance}।`;
+      const varieties = Array.isArray(calData.typicalVarieties) && calData.typicalVarieties.length
+        ? calData.typicalVarieties.join(", ")
+        : null;
+      const stages = (calData.criticalStages || []).slice(0, 3).map((stage) =>
+        language === "bn"
+          ? `- ${stage.nameBn || stage.nameEn}${stage.durationDays == null ? "" : `: ${stage.durationDays} দিন`}`
+          : `- ${stage.nameEn || stage.nameBn}${stage.durationDays == null ? "" : `: ${stage.durationDays} days`}`
+      ).join("\n");
+      answer = language === "bn"
+        ? `${calData.nameBn || calData.nameEn} ফসলের ${calData.district} জেলার পঞ্জিকা তথ্য:\n- বপনের সময়: ${calData.sowingPeriod || "উল্লেখ নেই"}\n` +
+          (calData.transplantingPeriod ? `- চারা রোপণের সময়: ${calData.transplantingPeriod}\n` : "") +
+          `- কাটার সময়: ${calData.harvestPeriod || "উল্লেখ নেই"}\n- ফসলের সময়কাল: ${calData.totalDurationDays == null ? "উল্লেখ নেই" : `${calData.totalDurationDays} দিন`}\n` +
+          `- উল্লেখিত জাত: ${varieties || "উল্লেখ নেই"}${stages ? `\nগুরুত্বপূর্ণ পর্যায়:\n${stages}` : ""}\n\n` +
+          "এটি পঞ্জিকা-ভিত্তিক তথ্য; বর্তমান আবহাওয়া বা ব্যক্তিগত ফলনের নিশ্চয়তা নয়।"
+        : `Crop-calendar information for ${calData.nameEn || calData.nameBn} in ${calData.district}:\n- Sowing period: ${calData.sowingPeriod || "not specified"}\n` +
+          (calData.transplantingPeriod ? `- Transplanting period: ${calData.transplantingPeriod}\n` : "") +
+          `- Harvest period: ${calData.harvestPeriod || "not specified"}\n- Crop duration: ${calData.totalDurationDays == null ? "not specified" : `${calData.totalDurationDays} days`}\n` +
+          `- Listed varieties: ${varieties || "not specified"}${stages ? `\nKey stages:\n${stages}` : ""}\n\n` +
+          "This is calendar guidance, not a current weather forecast or yield guarantee.";
     }
-  }
-  // 6. Generic or Greeting / Fallback
+    dataDate = null;
+  }  // 6. Generic or Greeting / Fallback
   else {
     const supported = await toolExecutors.getSupportedDistrictsAndCrops();
     executedTools.push({ toolName: "getSupportedDistrictsAndCrops", result: supported });
 
-    sources.push("Krishi Mama Core Agricultural Knowledge Base");
-    dataDate = "Live System";
-    dataQuality = "verified";
-    provenance.push("BBS / NASA / BAMIS verified configuration");
-
-    answer = `কৃষি মামা এআই সহকারীতে আপনাকে স্বাগতম। আপনি কুমিল্লা ও চট্টগ্রাম জেলার জন্য নিচের বিষয়গুলো জানতে পারেন:\n` +
-      `১. আমন কাটার পর সরিষা বা বোরোর পর আউশ চাষের উপযুক্ত সময় ও হ্যান্ডঅফ প্ল্যানারের ফলাফল।\n` +
-      `২. নাসা স্ম্যাপ (SMAP) স্যাটেলাইট অনুযায়ী মাটির বর্তমান আর্দ্রতা।\n` +
-      `৩. নাসা মোডিস (MODIS) অনুযায়ী উদ্ভিদের সবুজতা সূচক (NDVI ও EVI)।\n` +
-      `৪. নাসা পাওয়ার (NASA POWER) ভিত্তিক গত ২৫ বছরের ঐতিহাসিক বৃষ্টিপাত ও স্বাভাবিক আবহাওয়া।\n` +
-      `৫. বামিস (BAMIS), ব্রি (BRRI) ও বারি (BARI) এর সরকারি ক্রপ ক্যালেন্ডার ও জাত নির্দেশিকা।\n\n` +
-      `আপনার নির্দিষ্ট প্রশ্নটি করুন (যেমন: "কুমিল্লায় মাটির আর্দ্রতা কত?" বা "সরিষা কখন লাগাব?")।`;
+    sources.push("Krishi Mama assistant capability registry");
+    dataDate = null;
+    dataQuality = "capability_help";
+    provenance.push("Krishi Mama assistant capability registry");
+    language = isBanglaMessage(message) ? "bn" : "en";
+    answer = language === "bn"
+      ? "আমি আপনার নির্বাচিত খামারের সংরক্ষিত ফসল, কার্যক্রম ও জীবনচক্রের তথ্য, উপলভ্য NASA পর্যবেক্ষণ, আবহাওয়া এবং ফসল পঞ্জিকা নিয়ে সাহায্য করতে পারি। কোনো তথ্য না থাকলে তা স্পষ্ট করে জানাব। আপনি কোন বিষয়টি জানতে চান?"
+      : "I can help with your selected farm's saved crop, activities and lifecycle, available NASA observations, weather, and crop-calendar information. I will say when information is unavailable. What would you like to know?";
   }
 
   return {
@@ -929,8 +1101,11 @@ export class AssistantChatService {
             for (const authority of issuingAuthorities) {
               sources.add(`${authority} Official Bulletins`);
             }
-            provenance.push("BMD & DAE Meteorological Hazard Criteria");
+            provenance.push("Krishi Mama deterministic agro-weather risk engine");
             limitations.push("Alerts strictly distinguish official government bulletins from internal agro-weather risks.");
+            if (res.officialWarningsStatus === "UNAVAILABLE") {
+              limitations.push("Official warning storage was unavailable; absence of returned bulletins does not establish that no government warning exists.");
+            }
           } else if (call.toolName === "getAgriculturalRiskAssessment") {
             sources.add("Krishi Mama Agricultural Risk Engine");
             const issuingAuthorities = Array.isArray(res.alerts)

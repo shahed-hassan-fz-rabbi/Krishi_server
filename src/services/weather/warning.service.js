@@ -342,10 +342,10 @@ export async function seedInitialOfficialBulletins() {
  * Retrieves active, non-expired, verified official warnings for a given division or district.
  * If no verified bulletin exists, returns an explicit empty array [].
  */
-export async function getActiveOfficialWarnings({ division = null, district = null, referenceDate = new Date() } = {}) {
+export async function getActiveOfficialWarningsResult({ division = null, district = null, referenceDate = new Date() } = {}) {
   try {
     if (mongoose.connection.readyState !== 1) {
-      return [];
+      return { warnings: [], status: "UNAVAILABLE", checkedAt: referenceDate.toISOString() };
     }
 
     const query = {
@@ -370,7 +370,7 @@ export async function getActiveOfficialWarnings({ division = null, district = nu
     const warnings = await OfficialWarning.find(query).sort({ severity: -1, issuedAt: -1 }).lean();
     const verifiedWarnings = warnings.filter(w => isAuthenticGovernmentBulletin(w, referenceDate));
 
-    return verifiedWarnings.map(w => ({
+    const warningsResult = verifiedWarnings.map(w => ({
       id: w._id.toString(),
       bulletinNumber: w.bulletinNumber,
       issuingAuthority: w.issuingAuthority,
@@ -392,10 +392,19 @@ export async function getActiveOfficialWarnings({ division = null, district = nu
       sourceUrl: w.sourceUrl,
       provenance: `Verified Government Warning Bulletin (${w.issuingAuthority})`,
     }));
+    return {
+      warnings: warningsResult,
+      status: warningsResult.length ? "AVAILABLE" : "NONE_VERIFIED",
+      checkedAt: referenceDate.toISOString(),
+    };
   } catch (err) {
     console.error("Failed to query OfficialWarning:", err.message);
-    return [];
+    return { warnings: [], status: "UNAVAILABLE", checkedAt: referenceDate.toISOString() };
   }
+}
+
+export async function getActiveOfficialWarnings(options = {}) {
+  return (await getActiveOfficialWarningsResult(options)).warnings;
 }
 
 /**

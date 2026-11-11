@@ -7,7 +7,7 @@
 import { getLiveForecast } from "../services/weather/forecast.service.js";
 import { getSeasonalOutlook } from "../services/weather/seasonal.service.js";
 import {
-  getActiveOfficialWarnings,
+  getActiveOfficialWarningsResult,
   createOfficialWarningDraft,
   verifyOfficialWarning,
   revokeOfficialWarning,
@@ -16,7 +16,13 @@ import {
 import { assessAgriculturalRisks } from "../services/weather/risk.engine.js";
 import { Farm } from "../models/farm.model.js";
 import { FarmNotification } from "../models/farmnotification.model.js";
-import { resolveLocationCoordinates } from "../config/weather.config.js";
+import {
+  resolveLocationCoordinates,
+  resolveWarningDivision,
+  resolveWarningDistrict,
+} from "../config/weather.config.js";
+import { generateFarmLifecycleTimeline } from "../services/croplifecycle.service.js";
+import { getBangladeshDateKey } from "../utils/bangladesh-date.js";
 
 export function sumCompleteRainfall(days, requiredDayCount = 7) {
   if (!Array.isArray(days) || days.length < requiredDayCount) return null;
@@ -30,23 +36,37 @@ export function sumCompleteRainfall(days, requiredDayCount = 7) {
 /**
  * Resolves location parameter from query, farm context, or division/district
  */
-async function resolveLocationContext(req) {
+export async function resolveLocationContext(req) {
   let { latitude, longitude, location, division, district, farmId, crop, stage } = req.query;
   let farm = null;
 
-  if (farmId && req.user?._id) {
+  if (farmId) {
+    if (!req.user?._id) {
+      const error = new Error("Authentication is required for farm-specific weather");
+      error.statusCode = 401;
+      throw error;
+    }
     try {
       farm = await Farm.findOne({ _id: farmId, userId: req.user._id }).lean();
-      if (farm) {
-        if (!location && farm.location?.district) {
-          location = farm.location.district;
-        }
-        if (!crop && farm.crop?.cropCode) {
-          crop = farm.crop.cropCode;
-        }
+      if (!farm) {
+        const error = new Error("Farm not found");
+        error.statusCode = 404;
+        throw error;
       }
-    } catch {
-      // Non-blocking fallback
+      // An owned farm is the source of truth; query parameters cannot override it.
+      location = farm.location?.districtCode || farm.location?.district;
+      latitude = undefined;
+      longitude = undefined;
+      crop = crop || farm.crop?.cropCode || null;
+      const lifecycle = crop && farm.crop?.cropCode?.toLowerCase() === crop.toLowerCase() && farm.crop?.plantingDate
+        ? generateFarmLifecycleTimeline(farm)
+        : null;
+      stage = lifecycle?.data?.timelineOverview?.currentStage?.stageCode || null;
+    } catch (error) {
+      if (error.statusCode) throw error;
+      const unavailable = new Error("Farm weather context is temporarily unavailable");
+      unavailable.statusCode = error.name === "CastError" ? 404 : 503;
+      throw unavailable;
     }
   }
 
@@ -83,10 +103,75 @@ async function resolveLocationContext(req) {
     latitude: parsedLat,
     longitude: parsedLon,
     locationIdentifier,
-    crop: crop || (farm?.crop?.cropCode ? farm.crop.cropCode : null),
-    stage: stage || null,
+    crop: farm ? crop : (crop || null),
+    stage: farm ? stage : (stage || null),
     farm,
   };
+}
+
+export async function syncFarmWeatherNotifications({ assessment, farm, userId }) {
+  if (!farm || !userId || assessment?.overallRiskLevel === "DATA_INSUFFICIENT") return;
+  const alerts = (assessment.alerts || []).filter(alert =>
+    ["HIGH", "SEVERE"].includes(alert.severity) &&
+    alert.status !== "DATA_INSUFFICIENT" &&
+    alert.hazardType !== "INSUFFICIENT_DATA"
+  );
+  if (!alerts.length) return;
+
+  const now = new Date();
+  const operations = [];
+  for (const alert of alerts) {
+    if (!alert.id) continue;
+    const expiresAt = alert.validUntil
+      ? new Date(alert.validUntil)
+      : alert.date
+        ? new Date(`${alert.date}T23:59:59.999+06:00`)
+        : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    if (!Number.isFinite(expiresAt.getTime()) || expiresAt <= now) continue;
+
+    const deduplicationKey = `${userId}_${farm._id}_weather_${alert.id}`;
+    const explanation = [alert.descriptionEn || alert.titleEn, alert.actionAdviceEn]
+      .filter(Boolean)
+      .join(" Guidance: ") || "Weather hazard details are available in the farm forecast.";
+    operations.push({
+      updateOne: {
+        filter: { deduplicationKey, userId, farmId: farm._id },
+        update: {
+          $setOnInsert: {
+            userId,
+            farmId: farm._id,
+            type: alert.isGovernmentNotice ? "OFFICIAL_WARNING" : "WEATHER_ALERT",
+            title: alert.titleEn,
+            message: explanation,
+            sourceType: alert.isGovernmentNotice ? "OFFICIAL_GUIDANCE" : "PROJECT_GENERATED",
+            scheduledFor: alert.date || getBangladeshDateKey(),
+            expiresAt,
+            isRead: false,
+            deduplicationKey,
+            metadata: {
+              hazardType: alert.hazardType,
+              severity: alert.severity,
+              metric: alert.metric || null,
+              sourceType: alert.isGovernmentNotice ? "OFFICIAL_GOVERNMENT_WARNING" : "METEOROLOGICAL_FORECAST",
+              issuingAuthority: alert.issuingAuthority || null,
+              bulletinNumber: alert.bulletinNumber || null,
+              sourceUrl: alert.sourceUrl || null,
+              validUntil: alert.validUntil || null,
+            },
+          },
+        },
+        upsert: true,
+      },
+    });
+  }
+  if (operations.length) {
+    try {
+      await FarmNotification.bulkWrite(operations);
+    } catch (error) {
+      // A notification store failure must not turn a valid read-only forecast into a 500.
+      console.warn("Weather alert notification sync warning:", error.message);
+    }
+  }
 }
 
 export async function getForecast(req, res) {
@@ -140,17 +225,18 @@ export async function getAlerts(req, res) {
     const ctx = await resolveLocationContext(req);
 
     // Fetch live forecast and official warnings in parallel
-    const [forecast, officialWarnings] = await Promise.all([
+    const [forecast, warningResult] = await Promise.all([
       getLiveForecast({
         latitude: ctx.latitude,
         longitude: ctx.longitude,
         locationIdentifier: ctx.locationIdentifier,
       }),
-      getActiveOfficialWarnings({
-        division: req.query.division || (typeof ctx.locationIdentifier === "string" ? ctx.locationIdentifier : null),
-        district: req.query.district || (ctx.farm?.location?.district || null),
+      getActiveOfficialWarningsResult({
+        division: req.query.division || resolveWarningDivision(ctx.locationIdentifier),
+        district: req.query.district || ctx.farm?.location?.district || resolveWarningDistrict(ctx.locationIdentifier),
       }),
     ]);
+    const officialWarnings = warningResult.warnings;
 
     const assessment = assessAgriculturalRisks({
       forecast,
@@ -159,66 +245,7 @@ export async function getAlerts(req, res) {
       cropStage: ctx.stage,
     });
 
-    // If farm context and user exist, optionally sync high/severe alerts into notifications idempotently
-    if (ctx.farm && req.user?._id && assessment.alerts?.length > 0 && assessment.overallRiskLevel !== "DATA_INSUFFICIENT") {
-      const now = new Date();
-      const highAlerts = assessment.alerts.filter(
-        a => (a.severity === "HIGH" || a.severity === "SEVERE") &&
-             a.status !== "DATA_INSUFFICIENT" &&
-             a.hazardType !== "INSUFFICIENT_DATA"
-      );
-      if (highAlerts.length > 0) {
-        const ops = [];
-        for (const alert of highAlerts) {
-          const expiresAt = alert.validUntil
-            ? new Date(alert.validUntil)
-            : alert.date
-            ? new Date(`${alert.date}T23:59:59.999Z`)
-            : new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-          // Prevent creating expired notifications
-          if (expiresAt <= now) continue;
-
-          const deduplicationKey = `${req.user._id}_${ctx.farm._id}_weather_${alert.id}`;
-          ops.push({
-            updateOne: {
-              filter: { deduplicationKey, userId: req.user._id, farmId: ctx.farm._id },
-              update: {
-                $setOnInsert: {
-                  userId: req.user._id,
-                  farmId: ctx.farm._id,
-                  type: alert.isGovernmentNotice ? "OFFICIAL_WARNING" : "WEATHER_ALERT",
-                  title: alert.titleEn,
-                  message: alert.actionAdviceEn || alert.descriptionEn,
-                  sourceType: alert.isGovernmentNotice ? "OFFICIAL_GUIDANCE" : "PROJECT_GENERATED",
-                  scheduledFor: alert.date || now.toISOString().split("T")[0],
-                  expiresAt,
-                  isRead: false,
-                  deduplicationKey,
-                  metadata: {
-                    hazardType: alert.hazardType,
-                    severity: alert.severity,
-                    metric: alert.metric || null,
-                    sourceType: alert.isGovernmentNotice ? "OFFICIAL_GOVERNMENT_WARNING" : "METEOROLOGICAL_FORECAST",
-                    issuingAuthority: alert.issuingAuthority || null,
-                    bulletinNumber: alert.bulletinNumber || null,
-                    sourceUrl: alert.sourceUrl || null,
-                    validUntil: alert.validUntil || null,
-                  },
-                },
-              },
-              upsert: true,
-            },
-          });
-        }
-
-        if (ops.length > 0) {
-          FarmNotification.bulkWrite(ops).catch(e => {
-            console.warn("Weather alert notification sync warning:", e.message);
-          });
-        }
-      }
-    }
+    await syncFarmWeatherNotifications({ assessment, farm: ctx.farm, userId: req.user?._id });
 
     return res.status(200).json({
       success: true,
@@ -226,6 +253,8 @@ export async function getAlerts(req, res) {
         ...assessment,
         location: forecast.location,
         officialWarningsCount: officialWarnings.length,
+        officialWarningsStatus: warningResult.status,
+        officialWarningsCheckedAt: warningResult.checkedAt,
       },
     });
   } catch (err) {
@@ -242,7 +271,7 @@ export async function getCropPlanning(req, res) {
   try {
     const ctx = await resolveLocationContext(req);
 
-    const [forecast, outlook, officialWarnings] = await Promise.all([
+    const [forecast, outlook, warningResult] = await Promise.all([
       getLiveForecast({
         latitude: ctx.latitude,
         longitude: ctx.longitude,
@@ -253,11 +282,12 @@ export async function getCropPlanning(req, res) {
         longitude: ctx.longitude,
         locationIdentifier: ctx.locationIdentifier,
       }),
-      getActiveOfficialWarnings({
-        division: req.query.division || (typeof ctx.locationIdentifier === "string" ? ctx.locationIdentifier : null),
-        district: req.query.district || (ctx.farm?.location?.district || null),
+      getActiveOfficialWarningsResult({
+        division: req.query.division || resolveWarningDivision(ctx.locationIdentifier),
+        district: req.query.district || ctx.farm?.location?.district || resolveWarningDistrict(ctx.locationIdentifier),
       }),
     ]);
+    const officialWarnings = warningResult.warnings;
 
     const risks = assessAgriculturalRisks({
       forecast,
@@ -265,6 +295,9 @@ export async function getCropPlanning(req, res) {
       crop: ctx.crop,
       cropStage: ctx.stage,
     });
+
+    // Crop-planning viewers should see the same owner-scoped, expiring weather notices.
+    await syncFarmWeatherNotifications({ assessment: risks, farm: ctx.farm, userId: req.user?._id });
 
     // Synthesize Operational Windows
     // Sowing feasibility, chemical spraying window, irrigation demand, harvest safety
@@ -400,6 +433,17 @@ export async function getCropPlanning(req, res) {
       success: true,
       data: {
         location: forecast.location,
+        farmContext: ctx.farm ? {
+          farmId: String(ctx.farm._id),
+          farmName: ctx.farm.farmName || null,
+          district: ctx.farm.location?.district || null,
+          districtCode: ctx.farm.location?.districtCode || null,
+          upazila: ctx.farm.location?.upazila || null,
+          cropCode: ctx.crop,
+          cropStage: ctx.stage,
+          plantingDate: ctx.farm.crop?.plantingDate || null,
+          spatialLimitation: "Forecast uses a regional grid point; it is not a farm-level measurement.",
+        } : null,
         crop: ctx.crop || "General",
         shortRangeForecast: forecast.shortRangeForecast,
         extendedForecast: forecast.extendedForecast,
@@ -421,7 +465,11 @@ export async function getCropPlanning(req, res) {
           spatialResolution: outlook?.meta?.spatialResolution || "Coarse regional grid (~36 km)",
           officialAdvisories: officialWarnings.length > 0
             ? [...new Set(officialWarnings.map(warning => warning.issuingAuthority))].join(", ")
-            : "No verified government bulletins returned",
+            : warningResult.status === "NONE_VERIFIED"
+              ? "No verified government bulletins returned"
+              : "Official warning store unavailable",
+          officialWarningsStatus: warningResult.status,
+          officialWarningsCheckedAt: warningResult.checkedAt,
           officialBulletinsActiveCount: officialWarnings.length,
           agronomicRules: "BRRI & DAE Crop Production Standards",
           responseGeneratedAt: new Date().toISOString(),

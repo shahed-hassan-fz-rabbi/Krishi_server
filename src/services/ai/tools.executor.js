@@ -29,8 +29,9 @@ import {
 } from "../croplifecycle.service.js";
 import { getLiveForecast } from "../weather/forecast.service.js";
 import { getSeasonalOutlook } from "../weather/seasonal.service.js";
-import { getActiveOfficialWarnings } from "../weather/warning.service.js";
+import { getActiveOfficialWarningsResult } from "../weather/warning.service.js";
 import { assessAgriculturalRisks } from "../weather/risk.engine.js";
+import { resolveWarningDivision, resolveWarningDistrict } from "../../config/weather.config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +58,30 @@ async function findOwnedFarmForTool(farmId, userId) {
     return { error: "FARM_NOT_FOUND: Farm not found or access denied." };
   }
   return { farm };
+}
+
+export function getWeatherFarmContext(farm, selectedCrop) {
+  const cropCode = selectedCrop || farm.crop?.cropCode || null;
+  const sameStoredCrop = cropCode && farm.crop?.cropCode?.toLowerCase() === cropCode.toLowerCase();
+  const timeline = sameStoredCrop && farm.crop?.plantingDate
+    ? generateFarmLifecycleTimeline(farm)
+    : null;
+  const stage = timeline?.data?.timelineOverview?.currentStage || null;
+  return {
+    farmName: farm.farmName || null,
+    district: farm.location?.district || null,
+    districtCode: farm.location?.districtCode || null,
+    upazila: farm.location?.upazila || null,
+    cropCode,
+    cropStage: stage ? {
+      stageCode: stage.stageCode,
+      stageNameEn: stage.stageNameEn,
+      stageNameBn: stage.stageNameBn,
+    } : null,
+    cropStageStatus: stage ? "OFFICIAL_CALENDAR_ESTIMATE" : "UNAVAILABLE",
+    plantingDate: sameStoredCrop ? farm.crop?.plantingDate || null : null,
+    spatialLimitation: "Weather forecast uses a regional grid point, not a farm-level measurement.",
+  };
 }
 
 let cachedCalendars = null;
@@ -491,6 +516,7 @@ export const toolExecutors = {
     }
 
     let handoffData = null;
+    let snapshotMetadata = null;
     let isSnapshot = false;
 
     if (snapshotService.isDbConnected()) {
@@ -509,19 +535,23 @@ export const toolExecutors = {
       const snapshot = snapshotService.getHandoffSnapshot(validDistrict, normTransition);
       if (snapshot && snapshot.data) {
         handoffData = snapshot.data;
+        snapshotMetadata = snapshot.snapshotMetadata || null;
         isSnapshot = true;
       }
     }
 
-    handoffData = handoffData || {};
+    if (!handoffData) {
+      return { error: "VALIDATED_HANDOFF_DATA_UNAVAILABLE", dataStatus: "UNAVAILABLE", district: validDistrict, transition: normTransition };
+    }
+
     const sowingOpp = handoffData.sowing_opportunity || {};
     const oppPct = sowingOpp.workable_window_frequency_pct != null
       ? `${sowingOpp.workable_window_frequency_pct}%`
-      : (normTransition === "boro-aus" ? "84%" : "100%");
+      : null;
 
     const config = handoffData.config || {};
-    const windowLabel = config.sowing_window_label || (normTransition === "aman-mustard" ? "Nov 1 – Nov 20" : "Apr 1 – Apr 20");
-    const dryDaysReq = config.min_consecutive_dry_days || (normTransition === "aman-mustard" ? 3 : 4);
+    const windowLabel = config.sowing_window_label || null;
+    const dryDaysReq = Number.isFinite(config.min_consecutive_dry_days) ? config.min_consecutive_dry_days : null;
 
     return {
       district: validDistrict,
@@ -530,14 +560,15 @@ export const toolExecutors = {
       historicalOpportunityRate: oppPct,
       consecutiveDryDaysRequired: dryDaysReq,
       planningWindow: windowLabel,
+      yearsUsed: handoffData.years_used ?? null,
+      evidenceStatus: handoffData.evidence_status || null,
+      sampleSizeNote: handoffData.sample_size_note || null,
+      planningDescriptionEn: config.description_en || null,
+      planningDescriptionBn: config.description_bn || null,
+      snapshotGeneratedAt: snapshotMetadata?.generatedAt || null,
       periodShift: handoffData.period_comparison || {},
       sowingOpportunity: sowingOpp,
-      recommendationBn:
-        normTransition === "aman-mustard"
-          ? "আমন ধান কাটার পর সরিষা বপনের জন্য ১ থেকে ১৫ নভেম্বরের মধ্যে জমি প্রস্তুত করা লাভজনক। অক্টোবরের শেষের দিকের বৃষ্টিপাতের পরিবর্তনের কারণে জমি শুকাতে ৩ দিনের শুকনো সময় নিশ্চিত করা দরকার।"
-          : "বোরো ধান কাটার পর আউশ বপনের ক্ষেত্রে প্রাক-বর্ষার কালবৈশাখী বৃষ্টির ঝুঁকি রয়েছে। বিগত ২৫ বছরের উপাত্তে ৮৪% ক্ষেত্রে সফল বপন সম্ভব হয়েছে, তবে মে মাসের প্রথম সপ্তাহের মধ্যে বপন শেষ করা জরুরি।",
-      scientificDisclaimer:
-        "ঐতিহাসিক সুযোগের হার (Opportunity Rate) বিগত ২০০১–২০২৫ সালের নাসার উপাত্তভিত্তিক পরিসংখ্যান। এটি কোনো আসন্ন মৌসুমের শতভাগ নিশ্চিত আবহাওয়া পূর্বাভাস নয়।",
+      scientificDisclaimer: snapshotMetadata?.limitations || "Historical descriptive result only; this is not a forecast or a farm-specific recommendation.",
     };
   },
 
@@ -805,15 +836,18 @@ export const toolExecutors = {
    */
   async getLocationWeatherForecast({ location, farmId, userId }) {
     let targetLocation = location || "Chattogram";
+    let farmContext = null;
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      if (access.farm.location?.district) targetLocation = access.farm.location.district;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      farmContext = getWeatherFarmContext(access.farm, null);
     }
 
     const forecast = await getLiveForecast({ locationIdentifier: targetLocation });
     return {
       location: forecast.location,
+      farmContext,
       current: forecast.currentConditions,
       next7Days: forecast.shortRangeForecast.map((d) => ({
         date: d.date,
@@ -840,30 +874,40 @@ export const toolExecutors = {
   async getActiveWeatherAlerts({ location, crop, farmId, userId }) {
     let targetLocation = location || "Chattogram";
     let targetCrop = crop || null;
+    let farmContext = null;
 
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      if (access.farm.location?.district) targetLocation = access.farm.location.district;
-      if (!targetCrop && access.farm.crop?.cropCode) targetCrop = access.farm.crop.cropCode;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      farmContext = getWeatherFarmContext(access.farm, targetCrop);
+      targetCrop = farmContext.cropCode;
     }
 
-    const [forecast, officialWarnings] = await Promise.all([
+    const [forecast, warningResult] = await Promise.all([
       getLiveForecast({ locationIdentifier: targetLocation }),
-      getActiveOfficialWarnings({ division: targetLocation, district: targetLocation }),
+      getActiveOfficialWarningsResult({
+        division: resolveWarningDivision(targetLocation),
+        district: farmContext?.district || resolveWarningDistrict(targetLocation),
+      }),
     ]);
+    const officialWarnings = warningResult.warnings;
 
     const assessment = assessAgriculturalRisks({
       forecast,
       officialWarnings,
       crop: targetCrop,
+      cropStage: farmContext?.cropStage?.stageCode || undefined,
     });
 
     return {
       location: forecast.location,
+      farmContext,
       overallRiskLevel: assessment.overallRiskLevel,
       alertsCount: assessment.activeAlertsCount,
       officialWarningsCount: officialWarnings.length,
+      officialWarningsStatus: warningResult.status,
+      officialWarningsCheckedAt: warningResult.checkedAt,
       alerts: assessment.alerts.map((a) => ({
         source: a.source,
         category: a.category,
@@ -883,12 +927,25 @@ export const toolExecutors = {
   /**
    * 16. Crop-specific hazard evaluation against growth stages.
    */
-  async getAgriculturalRiskAssessment({ location, crop, stage }) {
-    const targetLocation = location || "Chattogram";
-    const [forecast, officialWarnings] = await Promise.all([
+  async getAgriculturalRiskAssessment({ location, crop, stage, farmId, userId }) {
+    let targetLocation = location || "Chattogram";
+    let farmContext = null;
+    if (farmId) {
+      const access = await findOwnedFarmForTool(farmId, userId);
+      if (access.error) return access;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      farmContext = getWeatherFarmContext(access.farm, crop);
+      crop = farmContext.cropCode;
+      stage = farmContext.cropStage?.stageCode || null;
+    }
+    const [forecast, warningResult] = await Promise.all([
       getLiveForecast({ locationIdentifier: targetLocation }),
-      getActiveOfficialWarnings({ division: targetLocation, district: targetLocation }),
+      getActiveOfficialWarningsResult({
+        division: resolveWarningDivision(targetLocation),
+        district: farmContext?.district || resolveWarningDistrict(targetLocation),
+      }),
     ]);
+    const officialWarnings = warningResult.warnings;
 
     const assessment = assessAgriculturalRisks({
       forecast,
@@ -898,6 +955,9 @@ export const toolExecutors = {
     });
 
     return {
+      farmContext,
+      officialWarningsStatus: warningResult.status,
+      officialWarningsCheckedAt: warningResult.checkedAt,
       targetCrop: crop,
       cropStage: stage || "Current Stage",
       overallRiskLevel: assessment.overallRiskLevel,
@@ -910,11 +970,19 @@ export const toolExecutors = {
   /**
    * 17. Sub-seasonal weekly tendencies (Weeks 1 to 6).
    */
-  async getWeeklyWeatherOutlook({ location }) {
-    const targetLocation = location || "Chattogram";
+  async getWeeklyWeatherOutlook({ location, farmId, userId }) {
+    let targetLocation = location || "Chattogram";
+    let farmContext = null;
+    if (farmId) {
+      const access = await findOwnedFarmForTool(farmId, userId);
+      if (access.error) return access;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      farmContext = getWeatherFarmContext(access.farm, null);
+    }
     const seasonal = await getSeasonalOutlook({ locationIdentifier: targetLocation });
     return {
       location: seasonal.location,
+      farmContext,
       weeklyTendencies: seasonal.subSeasonalWeeklyOutlook.map((w) => ({
         startDate: w.startDate,
         endDate: w.endDate,
@@ -944,11 +1012,20 @@ export const toolExecutors = {
   /**
    * 18. Seasonal monthly climate outlook (Months 1 to 3 ahead).
    */
-  async getSeasonalCropOutlook({ location, crop }) {
-    const targetLocation = location || "Chattogram";
+  async getSeasonalCropOutlook({ location, crop, farmId, userId }) {
+    let targetLocation = location || "Chattogram";
+    let farmContext = null;
+    if (farmId) {
+      const access = await findOwnedFarmForTool(farmId, userId);
+      if (access.error) return access;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      farmContext = getWeatherFarmContext(access.farm, crop);
+      crop = farmContext.cropCode;
+    }
     const seasonal = await getSeasonalOutlook({ locationIdentifier: targetLocation });
     return {
       location: seasonal.location,
+      farmContext,
       cropContext: crop || "General Crops",
       monthlyOutlooks: seasonal.seasonalMonthlyOutlook.map((m) => ({
         window: m.windowLabelEn,

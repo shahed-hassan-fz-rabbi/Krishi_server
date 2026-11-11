@@ -55,6 +55,24 @@ export const WEATHER_CONFIG = {
   },
 };
 
+const KNOWN_DISTRICT_DIVISIONS = Object.freeze({
+  cumilla: "Chattogram",
+  chattogram: "Chattogram",
+});
+
+export function resolveWarningDivision(locationIdentifier) {
+  if (typeof locationIdentifier !== "string") return null;
+  const normalized = locationIdentifier.trim().toLowerCase();
+  if (KNOWN_DISTRICT_DIVISIONS[normalized]) return KNOWN_DISTRICT_DIVISIONS[normalized];
+  return DIVISIONS.find(division => division.code === normalized || division.nameEn.toLowerCase() === normalized)?.nameEn || null;
+}
+
+export function resolveWarningDistrict(locationIdentifier) {
+  if (typeof locationIdentifier !== "string") return null;
+  const normalized = locationIdentifier.trim().toLowerCase();
+  return DISTRICTS.find(district => district.code === normalized || district.nameEn.toLowerCase() === normalized)?.nameEn || null;
+}
+
 // Official Bangladesh Meteorological Department (BMD) Thresholds
 // Documented in BMD Meteorological Glossary & Standard Operational Procedures
 export const BMD_THRESHOLDS = {
