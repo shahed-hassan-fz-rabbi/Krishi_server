@@ -13,6 +13,10 @@ import { snapshotService } from "../services/snapshot.service.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const GOOD_INDEX_OR = [
+  { ndvi: { $type: "number", $gte: MODIS.layers.ndvi.validMin, $lte: MODIS.layers.ndvi.validMax } },
+  { evi: { $type: "number", $gte: MODIS.layers.evi.validMin, $lte: MODIS.layers.evi.validMax } },
+];
 
 function isValidObservationDate(dateLabel) {
   if (typeof dateLabel !== "string" || !ISO_DAY.test(dateLabel)) return false;
@@ -198,10 +202,7 @@ export async function getLatestVegetation(req, res, next) {
       qualityClassification: "good_data",
       pixelReliability: 0,
       dateLabel: { $type: "string", $regex: /^\d{4}-\d{2}-\d{2}$/ },
-      $or: [
-        { ndvi: { $type: "number", $gte: -0.2, $lte: 1 } },
-        { evi: { $type: "number", $gte: -0.2, $lte: 1 } },
-      ],
+      $or: GOOD_INDEX_OR,
     };
     const validObservationCount = await ModisObservation.countDocuments(reliableFilter);
     if (validObservationCount === 0) {
