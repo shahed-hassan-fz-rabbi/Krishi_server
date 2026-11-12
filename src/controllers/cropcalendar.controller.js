@@ -14,6 +14,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { SmapObservation } from "../models/smapobservation.model.js";
 import { ModisObservation } from "../models/modisobservation.model.js";
+import { MODIS } from "../config/modis.config.js";
+import { SMAP } from "../config/smap.config.js";
+import { findLatestGoodModisObservation, findLatestMarginalModisObservation } from "../services/nasa/modis.quality.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -214,14 +217,20 @@ export async function getCropCalendarAlignment(req, res, next) {
     const isSeasonActive = isWeekInRange(currentWeek, districtCalendar.standardWeeksRange);
 
     // Retrieve latest SMAP observation from MongoDB
-    const latestSmap = await SmapObservation.findOne({ districtCode })
+    const latestSmap = await SmapObservation.findOne({
+      districtCode,
+      datasetKey: SMAP.datasetKey,
+      retrievalQualityFlag: { $in: [0, 8] },
+      isRecommendedQuality: true,
+      qualityClassification: "recommended",
+      soilMoisture: { $type: "number", $gte: SMAP.minValid, $lte: SMAP.maxValid },
+    })
       .sort({ dateLabel: -1 })
       .lean();
 
-    // Retrieve latest MODIS observation from MongoDB
-    const latestModis = await ModisObservation.findOne({ districtCode })
-      .sort({ dateLabel: -1 })
-      .lean();
+    // Only rank-0, in-range MODIS data is eligible for the primary observation.
+    const latestModis = await findLatestGoodModisObservation(ModisObservation, districtCode);
+    const latestMarginalModis = latestModis ? null : await findLatestMarginalModisObservation(ModisObservation, districtCode);
 
     const alignment = {
       districtCode,
@@ -264,14 +273,26 @@ export async function getCropCalendarAlignment(req, res, next) {
           : null,
         vegetationIndex: latestModis
           ? {
+              available: true,
               ndvi: latestModis.ndvi,
               evi: latestModis.evi,
               date: latestModis.dateLabel,
               quality: latestModis.qualityClassification,
               isReliable: latestModis.isReliableQuality,
-              source: "NASA MODIS MOD13Q1.061 (250m)",
+              source: `NASA ${MODIS.productName} (250m)`,
             }
-          : null,
+          : latestMarginalModis
+            ? {
+                available: false,
+                ndvi: null,
+                evi: null,
+                date: latestMarginalModis.dateLabel || null,
+                quality: latestMarginalModis.qualityClassification,
+                pixelReliability: latestMarginalModis.pixelReliability,
+                isReliable: false,
+                source: `NASA ${MODIS.productName} (250m)`,
+              }
+            : null,
       },
       scientificDisclosure:
         "Official agronomic recommendations are published by BAMIS / DAE / BRRI / BARI. " +

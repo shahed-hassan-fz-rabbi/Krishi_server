@@ -80,3 +80,13 @@ export function summarizeGpmLocalDay(districtCode, dateLabel, observations = [])
     completeness: "incomplete",
   };
 }
+
+/** Shared exact product scope for the Final V07 district APIs and GIS layer. */
+export function gpmFinalDistrictFilter(districtCode) {
+  return {
+    districtCode,
+    datasetKey: GPM.datasetKey,
+    runType: GPM.runType,
+    productVersion: GPM.granuleVersion,
+  };
+}

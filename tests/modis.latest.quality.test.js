@@ -4,6 +4,8 @@ import { getLatestVegetation } from "../src/controllers/modis.controller.js";
 import { MODIS } from "../src/config/modis.config.js";
 import { ModisObservation } from "../src/models/modisobservation.model.js";
 import { snapshotService } from "../src/services/snapshot.service.js";
+import { getCropCalendarAlignment } from "../src/controllers/cropcalendar.controller.js";
+import { SmapObservation } from "../src/models/smapobservation.model.js";
 
 function recorder() {
   return {
@@ -144,4 +146,96 @@ test("offline snapshot with only marginal or malformed rank-0 rows remains unava
   await getLatestVegetation({ query: { district: "cumilla" } }, res, (error) => { throw error; });
   assert.equal(res.statusCode, 503);
   assert.equal(res.body.error.code, "DATA_NO_VALID_OBSERVATIONS");
+});
+
+function queryResult(value) {
+  return { sort() { return this; }, lean: async () => value };
+}
+
+function queryRows(values) {
+  return { sort() { return this; }, lean: async () => values };
+}
+
+test("crop-calendar alignment returns district-matched rank-0 MODIS and recommended SMAP only", async (t) => {
+  const goodByDistrict = {
+    cumilla: row("cumilla", "2023-12-19"),
+    chattogram: row("chattogram", "2024-02-18"),
+  };
+  const smapFilters = [];
+  const modisFilters = [];
+  t.mock.method(SmapObservation, "findOne", (filter) => {
+    smapFilters.push(filter);
+    return queryResult({ districtCode: filter.districtCode, soilMoisture: 0.31, unit: "m^3/m^3", dateLabel: "2024-01-08", retrievalQualityFlag: 8, isRecommendedQuality: true, qualityClassification: "recommended" });
+  });
+  t.mock.method(ModisObservation, "find", (filter) => {
+    modisFilters.push(filter);
+    assertGoodFilter(filter, filter.districtCode);
+    return queryRows([goodByDistrict[filter.districtCode]]);
+  });
+
+  for (const district of ["cumilla", "chattogram"]) {
+    const res = recorder();
+    await getCropCalendarAlignment({ query: { district, crop: "monsoon_aman" } }, res, (error) => { throw error; });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.data.districtCode, district);
+    assert.equal(res.body.data.satelliteContext.vegetationIndex.available, true);
+    assert.equal(res.body.data.satelliteContext.vegetationIndex.quality, "good_data");
+    assert.equal(res.body.data.satelliteContext.vegetationIndex.ndvi, 0.4);
+    assert.equal(res.body.data.satelliteContext.vegetationIndex.date, goodByDistrict[district].dateLabel);
+    assert.equal(res.body.data.satelliteContext.soilMoisture.value, 0.31);
+  }
+  assert.equal(smapFilters.length, 2);
+  for (const filter of smapFilters) {
+    assert.ok(["cumilla", "chattogram"].includes(filter.districtCode));
+    assert.deepEqual(filter.retrievalQualityFlag, { $in: [0, 8] });
+    assert.equal(filter.isRecommendedQuality, true);
+    assert.equal(filter.qualityClassification, "recommended");
+  }
+  assert.deepEqual(modisFilters.map((filter) => filter.districtCode), ["cumilla", "chattogram"]);
+});
+
+test("crop-calendar alignment withholds rank-1 NDVI/EVI and exposes only its marginal date and quality", async (t) => {
+  t.mock.method(SmapObservation, "findOne", () => queryResult(null));
+  t.mock.method(ModisObservation, "find", (filter) => {
+    if (filter.pixelReliability === 0) return queryRows([]);
+    assert.equal(filter.districtCode, "cumilla");
+    assert.equal(filter.pixelReliability, 1);
+    return queryRows([row("cumilla", "2024-02-18", {
+      pixelReliability: 1,
+      isReliableQuality: false,
+      qualityClassification: "marginal_data",
+    })]);
+  });
+  const res = recorder();
+  await getCropCalendarAlignment({ query: { district: "cumilla", crop: "monsoon_aman" } }, res, (error) => { throw error; });
+  const vegetation = res.body.data.satelliteContext.vegetationIndex;
+  assert.equal(vegetation.available, false);
+  assert.equal(vegetation.ndvi, null);
+  assert.equal(vegetation.evi, null);
+  assert.equal(vegetation.date, "2024-02-18");
+  assert.equal(vegetation.quality, "marginal_data");
+  assert.equal(vegetation.pixelReliability, 1);
+});
+
+test("crop-calendar alignment does not treat missing MODIS quality metadata as good or marginal", async (t) => {
+  t.mock.method(SmapObservation, "findOne", () => queryResult(null));
+  t.mock.method(ModisObservation, "find", (filter) => {
+    if (filter.pixelReliability === 0) return queryRows([]);
+    assert.equal(filter.pixelReliability, 1);
+    return queryRows([row("cumilla", "2024-02-30", {
+      pixelReliability: 1,
+      isReliableQuality: false,
+      qualityClassification: "marginal_data",
+    })]);
+  });
+  const res = recorder();
+  await getCropCalendarAlignment({ query: { district: "cumilla", crop: "monsoon_aman" } }, res, (error) => { throw error; });
+  assert.equal(res.body.data.satelliteContext.vegetationIndex, null);
+});
+
+test("MODIS quality helper rejects impossible dates and missing quality metadata", async () => {
+  const { isGoodModisObservation } = await import("../src/services/nasa/modis.quality.js");
+  assert.equal(isGoodModisObservation(row("cumilla", "2024-02-30"), "cumilla"), false);
+  assert.equal(isGoodModisObservation(row("cumilla", "2024-02-18", { pixelReliability: undefined }), "cumilla"), false);
+  assert.equal(isGoodModisObservation(row("cumilla", "2024-02-18", { qualityClassification: undefined }), "cumilla"), false);
 });

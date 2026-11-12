@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { gpmFinalDistrictFilter } from "../src/services/nasa/gpm.validation.js";
 import { GPM } from "../src/config/gpm.config.js";
 import { aggregateBangladeshLocalDays, summarizeGpmLocalDay, validateGpmObservation } from "../src/services/nasa/gpm.validation.js";
 import { GpmObservation } from "../src/models/gpmobservation.model.js";
@@ -10,6 +11,21 @@ test("GPM config pins Final V07 product and physical fill metadata", () => {
   assert.equal(GPM.version, "07");
   assert.equal(GPM.precipitationUnit, "mm/hr");
   assert.equal(GPM.precipitationFillValue, -9999.9);
+});
+
+test("GPM API and GIS share the exact Final V07 product and district scope", () => {
+  assert.deepEqual(gpmFinalDistrictFilter("cumilla"), {
+    districtCode: "cumilla",
+    datasetKey: GPM.datasetKey,
+    runType: "Final",
+    productVersion: GPM.granuleVersion,
+  });
+  assert.deepEqual(gpmFinalDistrictFilter("chattogram"), {
+    districtCode: "chattogram",
+    datasetKey: GPM.datasetKey,
+    runType: "Final",
+    productVersion: GPM.granuleVersion,
+  });
 });
 
 test("one actual half-hour interval validates its local day and rate conversion", () => {

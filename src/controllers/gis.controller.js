@@ -22,7 +22,8 @@ import { NasaObservation } from "../models/nasaobservation.model.js";
 import { GPM } from "../config/gpm.config.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { snapshotService } from "../services/snapshot.service.js";
-import { summarizeGpmLocalDay } from "../services/nasa/gpm.validation.js";
+import { gpmFinalDistrictFilter, summarizeGpmLocalDay } from "../services/nasa/gpm.validation.js";
+import { findLatestGoodModisObservation, isGoodModisObservation, latestGoodModisSnapshot } from "../services/nasa/modis.quality.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -174,7 +175,14 @@ export async function getGisLayers(req, res, next) {
 
     if (snapshotService.isDbConnected()) {
       try {
-        latestSmap = await SmapObservation.findOne({ districtCode })
+        latestSmap = await SmapObservation.findOne({
+          districtCode,
+          datasetKey: SMAP.datasetKey,
+          retrievalQualityFlag: { $in: [0, 8] },
+          isRecommendedQuality: true,
+          qualityClassification: "recommended",
+          soilMoisture: { $type: "number", $gte: SMAP.minValid, $lte: SMAP.maxValid },
+        })
           .sort({ dateLabel: -1 })
           .lean();
       } catch {
@@ -182,18 +190,16 @@ export async function getGisLayers(req, res, next) {
       }
 
       try {
-        latestModis = await ModisObservation.findOne({ districtCode })
-          .sort({ dateLabel: -1 })
-          .lean();
+        latestModis = await findLatestGoodModisObservation(ModisObservation, districtCode);
       } catch {
         latestModis = null;
       }
 
       try {
-        latestGpm = await GpmObservation.findOne({ districtCode, runType: "Final", sourceQuality: "valid" })
+        latestGpm = await GpmObservation.findOne({ ...gpmFinalDistrictFilter(districtCode), sourceQuality: "valid", precipitationMm: { $type: "number", $gte: 0 } })
           .sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
         if (latestGpm) {
-          const dayDocs = await GpmObservation.find({ districtCode, dateLabel: latestGpm.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+          const dayDocs = await GpmObservation.find({ ...gpmFinalDistrictFilter(districtCode), dateLabel: latestGpm.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
           latestGpm.dailySummary = summarizeGpmLocalDay(districtCode, latestGpm.dateLabel, dayDocs);
         }
       } catch { latestGpm = null; }
@@ -208,16 +214,20 @@ export async function getGisLayers(req, res, next) {
 
     if (!latestSmap) {
       const smapSnap = snapshotService.getSmapSnapshot(districtCode);
-      if (smapSnap && smapSnap.latest) {
-        latestSmap = smapSnap.latest;
-      }
+      latestSmap = (smapSnap?.observations || [])
+        .filter((observation) => observation.districtCode === districtCode &&
+          observation.datasetKey === SMAP.datasetKey &&
+          [0, 8].includes(observation.retrievalQualityFlag) &&
+          observation.isRecommendedQuality === true &&
+          observation.qualityClassification === "recommended" &&
+          Number.isFinite(observation.soilMoisture) &&
+          observation.soilMoisture >= SMAP.minValid && observation.soilMoisture <= SMAP.maxValid)
+        .sort((a, b) => String(b.dateLabel).localeCompare(String(a.dateLabel)))[0] || null;
     }
 
     if (!latestModis) {
       const modisSnap = snapshotService.getModisSnapshot(districtCode);
-      if (modisSnap && modisSnap.latest) {
-        latestModis = modisSnap.latest;
-      }
+      latestModis = latestGoodModisSnapshot(modisSnap, districtCode);
     }
 
     // Construct Spatial Layers Payload
@@ -283,13 +293,12 @@ export async function getGisLayers(req, res, next) {
                 "Point observation represents top 5cm volume-averaged soil moisture for this regional cell, NOT individual farm fields.",
             }
           : null,
-        vegetation: latestModis
+        vegetation: latestModis && isGoodModisObservation(latestModis, districtCode)
           ? {
               sensorName: "NASA MODIS (MOD13Q1.061)",
-              extractedPixelLocation: {
-                latitude: latestModis.coordinates?.coordinates[1] || mapping.refCoord[1],
-                longitude: latestModis.coordinates?.coordinates[0] || mapping.refCoord[0],
-              },
+              extractedPixelLocation: Number.isFinite(latestModis.latitude) && Number.isFinite(latestModis.longitude)
+                ? { latitude: latestModis.latitude, longitude: latestModis.longitude }
+                : null,
               footprintEnvelopes: {
                 pixelRadiusMeters: 125, // 250m nominal pixel resolution radius (6.25 hectares)
               },

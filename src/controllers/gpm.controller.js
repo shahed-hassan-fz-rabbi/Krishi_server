@@ -3,7 +3,7 @@ import { DISTRICTS } from "../config/climate.config.js";
 import { GPM } from "../config/gpm.config.js";
 import { GpmObservation } from "../models/gpmobservation.model.js";
 import { snapshotService } from "../services/snapshot.service.js";
-import { summarizeGpmLocalDay } from "../services/nasa/gpm.validation.js";
+import { gpmFinalDistrictFilter, summarizeGpmLocalDay } from "../services/nasa/gpm.validation.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 
 const validDistricts = new Set(DISTRICTS.map(({ code }) => code));
@@ -50,14 +50,18 @@ export async function getLatestGpm(req, res, next) {
     const v = validateRequest(req);
     if (v.error) return errorResponse(res, ...v.error);
     if (!snapshotService.isDbConnected()) return errorResponse(res, 503, "GPM observations are unavailable while the database is disconnected.", "DATA_UNAVAILABLE", undefined, metadata(false));
-    const districtFilter = { districtCode: v.district, datasetKey: GPM.datasetKey, runType: GPM.runType, productVersion: GPM.granuleVersion };
+    const districtFilter = gpmFinalDistrictFilter(v.district);
     const validObservationCount = await GpmObservation.countDocuments({
       ...districtFilter,
       sourceQuality: "valid",
       precipitationMm: { $type: "number", $gte: 0 },
     });
     if (validObservationCount === 0) return errorResponse(res, 503, "No valid GPM observations are stored for this district.", "DATA_NO_VALID_OBSERVATIONS", undefined, metadata(true));
-    const latest = await GpmObservation.findOne(districtFilter).sort({ intervalStartUtc: -1 }).lean();
+    const latest = await GpmObservation.findOne({
+      ...districtFilter,
+      sourceQuality: "valid",
+      precipitationMm: { $type: "number", $gte: 0 },
+    }).sort({ intervalStartUtc: -1 }).lean();
     if (!latest) return errorResponse(res, 503, "No GPM observations are stored for this district.", "DATA_NOT_INGESTED", undefined, metadata(true));
     if (latest.districtCode !== v.district) return errorResponse(res, 500, "GPM district isolation check failed.", "DATA_ISOLATION_VIOLATION", undefined, metadata(true));
     const dayDocs = await GpmObservation.find({ ...districtFilter, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
@@ -75,7 +79,7 @@ export async function getGpmDaily(req, res, next) {
     const v = validateRequest(req, { dateRequired: true });
     if (v.error) return errorResponse(res, ...v.error);
     if (!snapshotService.isDbConnected()) return errorResponse(res, 503, "GPM observations are unavailable while the database is disconnected.", "DATA_UNAVAILABLE", undefined, metadata(false));
-    const docs = await GpmObservation.find({ districtCode: v.district, dateLabel: v.date }).sort({ intervalStartUtc: 1 }).lean();
+    const docs = await GpmObservation.find({ ...gpmFinalDistrictFilter(v.district), dateLabel: v.date }).sort({ intervalStartUtc: 1 }).lean();
     const summary = summarizeGpmLocalDay(v.district, v.date, docs);
     return successResponse(res, 200, { ...summary, ingestedAt: docs.reduce((latest, row) => row.createdAt && (!latest || row.createdAt > latest) ? row.createdAt : latest, null) }, metadata(true));
   } catch (error) { next(error); }
@@ -86,7 +90,7 @@ export async function getGpmHistory(req, res, next) {
     const v = validateRequest(req, { range: true });
     if (v.error) return errorResponse(res, ...v.error);
     if (!snapshotService.isDbConnected()) return errorResponse(res, 503, "GPM observations are unavailable while the database is disconnected.", "DATA_UNAVAILABLE", undefined, metadata(false));
-    const docs = await GpmObservation.find({ districtCode: v.district, dateLabel: { $gte: v.from, $lte: v.to } }).sort({ intervalStartUtc: 1 }).limit(MAX_HISTORY_DAYS * 48).lean();
+    const docs = await GpmObservation.find({ ...gpmFinalDistrictFilter(v.district), dateLabel: { $gte: v.from, $lte: v.to } }).sort({ intervalStartUtc: 1 }).limit(MAX_HISTORY_DAYS * 48).lean();
     const docsByDate = new Map();
     for (const row of docs) {
       if (!docsByDate.has(row.dateLabel)) docsByDate.set(row.dateLabel, []);

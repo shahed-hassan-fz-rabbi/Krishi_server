@@ -74,7 +74,8 @@ test("latest controllers constrain product and district in database filters", as
     readFile(new URL("../src/controllers/climate.controller.js", import.meta.url), "utf8"),
     readFile(new URL("../src/services/climate/analysis.service.js", import.meta.url), "utf8"),
   ]);
-  assert.match(gpm, /districtCode: v\.district, datasetKey: GPM\.datasetKey, runType: GPM\.runType, productVersion: GPM\.granuleVersion/);
+  assert.match(gpm, /gpmFinalDistrictFilter\(v\.district\)/);
+  assert.match(gpm, /sourceQuality: "valid",\s*precipitationMm: \{ \$type: "number", \$gte: 0 \}/);
   assert.match(smap, /findOne\(recommendedFilter\)/);
   assert.match(modis, /const reliableFilter = \{\s*districtCode: district,\s*datasetKey: MODIS\.datasetKey,\s*isReliableQuality: true,\s*qualityClassification: "good_data",\s*pixelReliability: 0,/);
   assert.match(modis, /findOne\(reliableFilter\)/);
