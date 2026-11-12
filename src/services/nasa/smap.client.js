@@ -4,29 +4,53 @@
  */
 
 import { SMAP } from "../../config/smap.config.js";
-import { DISTRICTS } from "../../config/climate.config.js";
-import { getEarthdataBasicAuthHeader, isEarthdataConfigured } from "./earthdata.auth.js";
+import { fetchWithRetry } from "./fetch-with-retry.js";
 
-const DISTRICT_COORDS = {
-  cumilla: { lat: 23.46186, lon: 91.18503 },
-  chattogram: { lat: 22.3384, lon: 91.8317 },
+const DISTRICT_CMR_BOUNDS = {
+  cumilla: { west: 90.7, south: 23.0, east: 91.7, north: 23.9 },
+  chattogram: { west: 91.3, south: 21.8, east: 92.4, north: 22.9 },
 };
+
+export function deduplicateSmapGranules(granules = []) {
+  const seen = new Set();
+  return granules.filter((granule) => {
+    const key = granule?.granuleId || granule?.dataUrl;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 /**
  * Searches NASA CMR for SPL3SMP_E granules matching a date range and bounding box.
  */
-export async function searchSmapGranules({ startDate, endDate, limit = 50 }) {
+export async function searchSmapGranules({ startDate, endDate, limit = 50, districtCode = "chattogram", fetchImpl = globalThis.fetch }) {
+  const bounds = DISTRICT_CMR_BOUNDS[districtCode];
+  if (!bounds) throw new Error(`SMAP CMR discovery does not support district '${districtCode}'`);
+  const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || "") &&
+    new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
+  if (!validDate(startDate) || !validDate(endDate) || startDate > endDate) {
+    throw new Error("SMAP CMR discovery requires a valid ordered YYYY-MM-DD date range");
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new Error("SMAP CMR discovery limit must be between 1 and 50");
+  }
   const temporal = `${startDate}T00:00:00Z,${endDate}T23:59:59Z`;
-  // Bangladesh bounding box: 88.01, 20.59 to 92.68, 26.64
-  const boundingBox = "91.0,22.0,92.5,24.0"; // Focused on Cumilla & Chattogram region
+  const boundingBox = `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
+  const url = new URL(SMAP.cmrSearchUrl);
+  url.search = new URLSearchParams({
+    collection_concept_id: SMAP.collectionConceptId,
+    bounding_box: boundingBox,
+    temporal,
+    page_size: String(limit),
+    sort_key: "-start_date",
+  }).toString();
 
-  const url = `${SMAP.cmrSearchUrl}?collection_concept_id=${SMAP.collectionConceptId}&bounding_box=${boundingBox}&temporal=${temporal}&page_size=${limit}&sort_key=-start_date`;
-
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url.toString(), {
     headers: {
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
-  });
+  }, { fetchImpl });
 
   if (!response.ok) {
     throw new Error(`CMR_SEARCH_FAILED: HTTP ${response.status} from ${url}`);
@@ -35,15 +59,22 @@ export async function searchSmapGranules({ startDate, endDate, limit = 50 }) {
   const json = await response.json();
   const entries = json?.feed?.entry || [];
 
-  return entries.map((entry) => {
-    const title = entry.title;
+  const granules = entries.map((entry) => {
+    const title = typeof entry.title === "string" ? entry.title : "";
     // Extract date from granule title e.g., SMAP_L3_SM_P_E_20240101_R19240_001.h5
     const dateMatch = title.match(/_(\d{4})(\d{2})(\d{2})_/);
     const dateLabel = dateMatch ? `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}` : null;
 
-    const dataLink = entry.links?.find(
-      (l) => l.href && (l.href.endsWith(".h5") || l.rel?.endsWith("#data"))
-    )?.href;
+    const dataLink = entry.links?.find((link) => {
+      if (typeof link?.href !== "string") return false;
+      try {
+        const parsedUrl = new URL(link.href);
+        return parsedUrl.protocol === "https:" &&
+          (parsedUrl.pathname.toLowerCase().endsWith(".h5") || link.rel?.endsWith("#data"));
+      } catch {
+        return false;
+      }
+    })?.href;
 
     return {
       granuleId: entry.id,
@@ -52,7 +83,12 @@ export async function searchSmapGranules({ startDate, endDate, limit = 50 }) {
       dataUrl: dataLink || null,
       updated: entry.updated,
     };
+  }).filter((granule) => {
+    if (!granule.dateLabel || !granule.dataUrl || granule.dateLabel < startDate || granule.dateLabel > endDate) return false;
+    return validDate(granule.dateLabel);
   });
+
+  return deduplicateSmapGranules(granules);
 }
 
 /**

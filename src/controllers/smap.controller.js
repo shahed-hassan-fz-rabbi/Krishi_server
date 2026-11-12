@@ -150,7 +150,7 @@ export async function getLatestSoilMoisture(req, res, next) {
     }
 
     // Find the latest recorded observation
-    const latestDoc = await SmapObservation.findOne({ districtCode: district, datasetKey: SMAP.datasetKey })
+    const latestDoc = await SmapObservation.findOne(recommendedFilter)
       .sort({ dateLabel: -1, orbit: -1 })
       .lean();
 
@@ -181,8 +181,7 @@ export async function getLatestSoilMoisture(req, res, next) {
 
     // Also look for corresponding AM/PM on the same date
     const sameDateDocs = await SmapObservation.find({
-      districtCode: district,
-      datasetKey: SMAP.datasetKey,
+      ...recommendedFilter,
       dateLabel: latestDoc.dateLabel,
     }).lean();
     if (sameDateDocs.some((doc) => doc.districtCode !== district)) {

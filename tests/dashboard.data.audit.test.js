@@ -75,7 +75,7 @@ test("latest controllers constrain product and district in database filters", as
     readFile(new URL("../src/services/climate/analysis.service.js", import.meta.url), "utf8"),
   ]);
   assert.match(gpm, /districtCode: v\.district, datasetKey: GPM\.datasetKey, runType: GPM\.runType, productVersion: GPM\.granuleVersion/);
-  assert.match(smap, /findOne\(\{ districtCode: district, datasetKey: SMAP\.datasetKey \}\)/);
+  assert.match(smap, /findOne\(recommendedFilter\)/);
   assert.match(modis, /findOne\(\{ districtCode: district, datasetKey: MODIS\.datasetKey \}\)/);
   assert.match(climate, /countDocuments\(\{\s*datasetKey: DATASET_KEY,\s*districtCode: district/);
   assert.match(powerService, /const query = \{\s*datasetKey: POWER\.datasetKey,\s*districtCode/);

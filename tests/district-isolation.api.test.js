@@ -55,13 +55,18 @@ test("GPM, SMAP, and MODIS latest controllers isolate both districts", async (t)
     assert.deepEqual(filter.retrievalQualityFlag.$in, [0, 8]);
     return 1;
   });
-  t.mock.method(SmapObservation, "findOne", (filter) => ({
-    sort() { return this; },
-    lean: async () => fixtures[filter.districtCode].smap,
-  }));
-  t.mock.method(SmapObservation, "find", (filter) => ({
-    lean: async () => [fixtures[filter.districtCode].smap],
-  }));
+  t.mock.method(SmapObservation, "findOne", (filter) => {
+    // Latest must exclude newer flag-9/fill records when valid older rows exist.
+    assert.deepEqual(filter.retrievalQualityFlag.$in, [0, 8]);
+    assert.equal(filter.isRecommendedQuality, true);
+    assert.equal(filter.qualityClassification, "recommended");
+    return { sort() { return this; }, lean: async () => fixtures[filter.districtCode].smap };
+  });
+  t.mock.method(SmapObservation, "find", (filter) => {
+    assert.deepEqual(filter.retrievalQualityFlag.$in, [0, 8]);
+    assert.equal(filter.isRecommendedQuality, true);
+    return { lean: async () => [fixtures[filter.districtCode].smap] };
+  });
 
   t.mock.method(ModisObservation, "countDocuments", async (filter) => {
     assert.equal(filter.datasetKey, MODIS.datasetKey);

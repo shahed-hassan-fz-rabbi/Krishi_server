@@ -10,8 +10,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { SMAP } from "../config/smap.config.js";
 import { DISTRICTS } from "../config/climate.config.js";
-import { SmapObservation } from "../models/smapobservation.model.js";
 import { getEarthdataAuthHeader } from "../services/nasa/earthdata.auth.js";
+import { searchSmapGranules } from "../services/nasa/smap.client.js";
+import { fetchWithRetry } from "../services/nasa/fetch-with-retry.js";
+import { persistValidatedSmapObservations } from "../services/nasa/smap.persistence.js";
 
 const execFileAsync = promisify(execFile);
 const districts = {
@@ -31,7 +33,9 @@ function dateRangeArgs() {
   }
   const days = Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1;
   if (days > 2) throw new Error("SMAP expansion is limited to two days per invocation");
-  return { start, end };
+  const district = process.argv.find(x => x.startsWith("--district="))?.slice(11) || "chattogram";
+  if (!districts[district]) throw new Error("Pass --district=chattogram or --district=cumilla");
+  return { start, end, district };
 }
 
 function geodesicKm(lat1, lon1, lat2, lon2) {
@@ -46,7 +50,9 @@ async function submitHarmony(districtCode, dateRange, authHeader) {
   const startUtc = `${dateRange.start}T00:00:00Z`;
   const endUtc = `${dateRange.end}T23:59:59Z`;
   const url = `${SMAP.harmonyBaseUrl}/${SMAP.collectionConceptId}/ogc-api-coverages/1.0.0/collections/all/coverage/rangeset?subset=lat(${subset.lat})&subset=lon(${subset.lon})&subset=time("${startUtc}":"${endUtc}")&forceAsync=true`;
-  const response = await fetch(url, { headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" }, signal: AbortSignal.timeout(60000) });
+  // Harmony job submission is a POST without a known idempotency key; don't
+  // retry it automatically because a lost response could create duplicate jobs.
+  const response = await fetchWithRetry(url, { headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" }, signal: AbortSignal.timeout(60000) }, { attempts: 1 });
   if (response.status === 401) throw new Error("NASA Harmony authentication failed (HTTP 401)");
   if (response.status === 403) throw new Error("NASA Harmony authorization failed (HTTP 403)");
   if (response.status === 429) throw new Error("NASA Harmony rate limit reached (HTTP 429)");
@@ -56,7 +62,7 @@ async function submitHarmony(districtCode, dateRange, authHeader) {
   const pollUrl = `${SMAP.harmonyBaseUrl}/jobs/${submitted.jobID}`;
   for (let attempt = 0; attempt < 45; attempt += 1) {
     await sleep(4000);
-    const poll = await fetch(pollUrl, { headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" }, signal: AbortSignal.timeout(30000) });
+    const poll = await fetchWithRetry(pollUrl, { headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" }, signal: AbortSignal.timeout(30000) });
     if (poll.status === 401 || poll.status === 403 || poll.status === 429) {
       throw new Error(`NASA Harmony poll stopped on HTTP ${poll.status}`);
     }
@@ -153,33 +159,57 @@ async function parseFile(filePath, districtCode, runId) {
 let stage = "argument_validation";
 async function main() {
   const dateRange = dateRangeArgs();
+  const apply = process.argv.includes("--apply");
   stage = "Earthdata credential resolution";
   const authHeader = getEarthdataAuthHeader();
-  if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is not configured");
-  stage = "MongoDB Atlas connection";
-  await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 12000 });
-  console.log("SMAP expansion: database connection established.");
   const runId = `smap-${dateRange.start}-${dateRange.end}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
-  const baselineCount = await SmapObservation.countDocuments();
-  let downloadedFiles = 0, parsedObservations = 0, upserted = 0, skipped = 0;
+  const validatedDocs = [];
+  const discoveredGranules = [];
+  let downloadedFiles = 0, skipped = 0;
   try {
-    await SmapObservation.init();
-    for (const districtCode of Object.keys(districts)) {
+    const districtCode = dateRange.district;
+    stage = `NASA CMR granule discovery for ${districtCode}`;
+    const granules = await searchSmapGranules({
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      districtCode,
+      limit: 50,
+    });
+    if (granules.length === 0) throw new Error(`NASA CMR found no ${SMAP.productName} granules over ${districtCode} for the requested dates`);
+    const discoveredDates = new Set(granules.map((granule) => granule.dateLabel));
+    discoveredGranules.push(...granules.map(({ granuleId, title, dateLabel, updated }) => ({ granuleId, title, dateLabel, updated })));
+
+    {
       stage = `NASA Harmony submission for ${districtCode}`;
       console.log(`SMAP expansion: requesting bounded Harmony subset for ${districtCode}.`);
       const result = await submitHarmony(districtCode, dateRange, authHeader);
-      const links = result.links.filter(link => link.href && (link.rel === "data" || /\.(?:nc4|h5)(?:\?|$)/i.test(link.href)));
+      const links = result.links.filter(link => {
+        if (typeof link?.href !== "string") return false;
+        try {
+          const parsed = new URL(link.href);
+          return parsed.protocol === "https:" && (link.rel === "data" || /\.(?:nc4|h5)$/i.test(parsed.pathname));
+        } catch {
+          return false;
+        }
+      });
       const uniqueLinks = [...new Map(links.map(link => [link.href, link])).values()];
       if (uniqueLinks.length === 0) throw new Error(`Harmony returned no data files for ${districtCode}`);
       for (const link of uniqueLinks) {
         const remoteName = path.basename(new URL(link.href).pathname) || `${districtCode}-${Date.now()}.nc4`;
+        const granuleDate = dateFromGranule(remoteName);
+        if (!granuleDate || !discoveredDates.has(granuleDate)) {
+          throw new Error(`Harmony file ${remoteName} does not match a granule discovered by CMR for ${districtCode}`);
+        }
         const fileName = `${districtCode}_${remoteName}`;
         const dest = path.resolve("data/smap/raw", fileName);
+        await fs.mkdir(path.dirname(dest), { recursive: true });
         try {
           await fs.access(dest);
           skipped += 1;
-        } catch {
-          const file = await fetch(link.href, { headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" }, signal: AbortSignal.timeout(60000) });
+        } catch (error) {
+          // Only ENOENT is expected; surface other filesystem errors.
+          if (error.code !== "ENOENT") throw error;
+          const file = await fetchWithRetry(link.href, { headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" }, signal: AbortSignal.timeout(60000) });
           if (file.status === 401 || file.status === 403 || file.status === 429) throw new Error(`NASA Harmony download stopped on HTTP ${file.status}`);
           if (!file.ok) throw new Error(`NASA Harmony download returned HTTP ${file.status}`);
           const bytes = Buffer.from(await file.arrayBuffer());
@@ -191,21 +221,39 @@ async function main() {
         if (observations.some(obs => obs.dateLabel < dateRange.start || obs.dateLabel > dateRange.end)) {
           throw new Error(`SMAP granule ${fileName} escaped requested date range`);
         }
-        parsedObservations += observations.length;
-        for (const doc of observations) {
-          const result = await SmapObservation.updateOne(
-            { districtCode: doc.districtCode, dateLabel: doc.dateLabel, orbit: doc.orbit },
-            { $setOnInsert: doc },
-            { upsert: true }
-          );
-          upserted += result.upsertedCount || 0;
-        }
+        validatedDocs.push(...observations);
       }
     }
-    const newBaseline = await SmapObservation.countDocuments();
-    console.log(JSON.stringify({ runId, dateRange, downloadedFiles, reusedFiles: skipped, parsedObservations, upserted, baselineCount, finalCount: newBaseline, baselinePreserved: newBaseline >= baselineCount }));
+    const uniqueDocs = [...new Map(validatedDocs.map((doc) => [`${doc.districtCode}:${doc.dateLabel}:${doc.orbit}`, doc])).values()];
+    if (uniqueDocs.length === 0) throw new Error("No unique, validated SMAP observations remain after district, geolocation, fill-value, and quality checks");
+
+    if (!apply) {
+      const stagingDir = path.resolve("data/smap/recovery-staging");
+      await fs.mkdir(stagingDir, { recursive: true });
+      const stagedPath = path.join(stagingDir, `${runId}.json`);
+      await fs.writeFile(stagedPath, JSON.stringify({
+        runId,
+        dateRange,
+        discoveredGranules,
+        downloadedFiles,
+        reusedFiles: skipped,
+        validatedObservationCount: uniqueDocs.length,
+        observations: uniqueDocs,
+        persistedToDatabase: false,
+      }, null, 2), { flag: "wx" });
+      console.log(JSON.stringify({ runId, dateRange, discoveredGranules: discoveredGranules.length, downloadedFiles, reusedFiles: skipped, validatedObservationCount: uniqueDocs.length, stagedPath, persistedToDatabase: false }));
+      console.log("Dry run complete. Re-run with --apply only after reviewing and explicitly authorizing database persistence.");
+      return;
+    }
+
+    if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is not configured");
+    stage = "MongoDB Atlas connection after data validation";
+    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 12000 });
+    console.log("SMAP expansion: database connection established after NASA data validation.");
+    const persistence = await persistValidatedSmapObservations(uniqueDocs);
+    console.log(JSON.stringify({ runId, dateRange, discoveredGranules: discoveredGranules.length, downloadedFiles, reusedFiles: skipped, validatedObservationCount: uniqueDocs.length, ...persistence }));
   } finally {
-    await mongoose.disconnect();
+    if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
   }
 }
 
