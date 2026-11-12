@@ -76,7 +76,8 @@ test("latest controllers constrain product and district in database filters", as
   ]);
   assert.match(gpm, /districtCode: v\.district, datasetKey: GPM\.datasetKey, runType: GPM\.runType, productVersion: GPM\.granuleVersion/);
   assert.match(smap, /findOne\(recommendedFilter\)/);
-  assert.match(modis, /findOne\(\{ districtCode: district, datasetKey: MODIS\.datasetKey \}\)/);
+  assert.match(modis, /const reliableFilter = \{\s*districtCode: district,\s*datasetKey: MODIS\.datasetKey,\s*isReliableQuality: true,\s*qualityClassification: "good_data",\s*pixelReliability: 0,/);
+  assert.match(modis, /findOne\(reliableFilter\)/);
   assert.match(climate, /countDocuments\(\{\s*datasetKey: DATASET_KEY,\s*districtCode: district/);
   assert.match(powerService, /const query = \{\s*datasetKey: POWER\.datasetKey,\s*districtCode/);
 });

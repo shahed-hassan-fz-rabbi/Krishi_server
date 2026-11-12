@@ -12,6 +12,40 @@ import { errorResponse, successResponse } from "../utils/response.js";
 import { snapshotService } from "../services/snapshot.service.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidObservationDate(dateLabel) {
+  if (typeof dateLabel !== "string" || !ISO_DAY.test(dateLabel)) return false;
+  const date = new Date(`${dateLabel}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateLabel;
+}
+
+function validIndex(value) {
+  return Number.isFinite(value) && value >= MODIS.layers.ndvi.validMin && value <= MODIS.layers.ndvi.validMax
+    ? value
+    : null;
+}
+
+function isEligibleGoodObservation(observation, district) {
+  if (
+    !observation ||
+    observation.districtCode !== district ||
+    observation.datasetKey !== MODIS.datasetKey ||
+    !isValidObservationDate(observation.dateLabel) ||
+    observation.pixelReliability !== 0 ||
+    observation.isReliableQuality !== true ||
+    observation.qualityClassification !== "good_data"
+  ) return false;
+
+  return validIndex(observation.ndvi) !== null || validIndex(observation.evi) !== null;
+}
+
+function latestEligibleSnapshotObservation(snapshot, district) {
+  if (!Array.isArray(snapshot?.observations)) return null;
+  return snapshot.observations
+    .filter((observation) => isEligibleGoodObservation(observation, district))
+    .sort((a, b) => b.dateLabel.localeCompare(a.dateLabel))[0] || null;
+}
 
 function validateDistrict(code) {
   const district = (code || "cumilla").trim().toLowerCase();
@@ -31,8 +65,8 @@ function buildModisLatestPayload(district, latestDoc, isSnapshot = false, limita
     dateLabel: latestDoc.dateLabel,
     ingestedAt: latestDoc.createdAt || null,
     compositeDayOfYear: latestDoc.compositeDayOfYear,
-    ndvi: latestDoc.ndvi,
-    evi: latestDoc.evi,
+    ndvi: validIndex(latestDoc.ndvi),
+    evi: validIndex(latestDoc.evi),
     pixelReliability: latestDoc.pixelReliability,
     isReliableQuality: latestDoc.isReliableQuality,
     qualityClassification: latestDoc.qualityClassification,
@@ -144,21 +178,17 @@ export async function getLatestVegetation(req, res, next) {
 
     if (!snapshotService.isDbConnected()) {
       const snapshot = snapshotService.getModisSnapshot(district);
-      if (snapshot && snapshot.latest) {
+      const snapshotLatest = latestEligibleSnapshotObservation(snapshot, district);
+      if (snapshotLatest) {
         const { data, meta } = buildModisLatestPayload(
           district,
-          snapshot.latest,
+          snapshotLatest,
           true,
           snapshot.snapshotMetadata?.limitations
         );
         return successResponse(res, 200, data, meta);
       }
-      return errorResponse(
-        res,
-        503,
-        `No MODIS vegetation observations are available offline for district '${district}'.`,
-        "DATA_UNAVAILABLE"
-      );
+      return errorResponse(res, 503, `No rank-0 quality-approved MODIS observation is available for district '${district}'.`, "DATA_NO_VALID_OBSERVATIONS");
     }
 
     const reliableFilter = {
@@ -167,6 +197,7 @@ export async function getLatestVegetation(req, res, next) {
       isReliableQuality: true,
       qualityClassification: "good_data",
       pixelReliability: 0,
+      dateLabel: { $type: "string", $regex: /^\d{4}-\d{2}-\d{2}$/ },
       $or: [
         { ndvi: { $type: "number", $gte: -0.2, $lte: 1 } },
         { evi: { $type: "number", $gte: -0.2, $lte: 1 } },
@@ -182,28 +213,27 @@ export async function getLatestVegetation(req, res, next) {
       );
     }
 
-    const latestDoc = await ModisObservation.findOne({ districtCode: district, datasetKey: MODIS.datasetKey })
+    // Choose the newest observation that passed the same quality gate used for
+    // the availability count. A newer marginal/cloudy pixel must not hide an
+    // older usable observation for this district.
+    const latestDoc = await ModisObservation.findOne(reliableFilter)
       .sort({ dateLabel: -1 })
       .lean();
 
-    if (!latestDoc) {
+    if (!latestDoc || !isEligibleGoodObservation(latestDoc, district)) {
       const snapshot = snapshotService.getModisSnapshot(district);
-      if (snapshot && snapshot.latest) {
+      const snapshotLatest = latestEligibleSnapshotObservation(snapshot, district);
+      if (snapshotLatest) {
         const { data, meta } = buildModisLatestPayload(
           district,
-          snapshot.latest,
+          snapshotLatest,
           true,
           snapshot.snapshotMetadata?.limitations
         );
         return successResponse(res, 200, data, meta);
       }
 
-      return errorResponse(
-        res,
-        503,
-        `No MODIS vegetation observations are currently stored for district '${district}'. Ingestion job must be executed.`,
-        "DATA_NOT_INGESTED"
-      );
+      return errorResponse(res, 503, `No rank-0 quality-approved MODIS observation is available for district '${district}'.`, "DATA_NO_VALID_OBSERVATIONS");
     }
     if (latestDoc.districtCode !== district) {
       return errorResponse(res, 500, "MODIS district isolation check failed.", "DATA_ISOLATION_VIOLATION");
@@ -216,10 +246,11 @@ export async function getLatestVegetation(req, res, next) {
       const check = validateDistrict(req.query.district);
       if (check.valid) {
         const snapshot = snapshotService.getModisSnapshot(check.district);
-        if (snapshot && snapshot.latest) {
+        const snapshotLatest = latestEligibleSnapshotObservation(snapshot, check.district);
+        if (snapshotLatest) {
           const { data, meta } = buildModisLatestPayload(
             check.district,
-            snapshot.latest,
+            snapshotLatest,
             true,
             snapshot.snapshotMetadata?.limitations
           );

@@ -73,10 +73,20 @@ test("GPM, SMAP, and MODIS latest controllers isolate both districts", async (t)
     assert.equal(filter.pixelReliability, 0);
     return 1;
   });
-  t.mock.method(ModisObservation, "findOne", (filter) => ({
-    sort() { return this; },
-    lean: async () => fixtures[filter.districtCode].modis,
-  }));
+  t.mock.method(ModisObservation, "findOne", (filter) => {
+    // The latest endpoint must query only quality-approved pixels. Otherwise
+    // a newer marginal observation can mask an older usable one.
+    assert.equal(filter.datasetKey, MODIS.datasetKey);
+    assert.equal(filter.isReliableQuality, true);
+    assert.equal(filter.qualityClassification, "good_data");
+    assert.equal(filter.pixelReliability, 0);
+    assert.ok(filter.$or.some((clause) => clause.ndvi?.$type === "number"));
+    assert.ok(filter.$or.some((clause) => clause.evi?.$type === "number"));
+    return {
+      sort() { return this; },
+      lean: async () => fixtures[filter.districtCode].modis,
+    };
+  });
 
   for (const district of ["cumilla", "chattogram"]) {
     const gpmRes = responseRecorder();
