@@ -13,6 +13,17 @@ dotenv.config();
 
 import { MODIS } from "../../config/modis.config.js";
 
+// Bounded request timeouts (Phase 5 reliability): AppEEARS endpoints must never hang a job.
+// File downloads get a larger budget; interactive endpoints stay short.
+const APPEEARS_TIMEOUTS = {
+  login: 15000,
+  catalogue: 20000,
+  taskSubmit: 30000,
+  status: 15000,
+  bundle: 15000,
+  fileDownload: 120000,
+};
+
 let cachedAppeearsToken = null;
 let tokenExpiresAt = null;
 
@@ -53,6 +64,7 @@ export async function loginAppeears() {
       "Content-Type": "application/json",
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
+    signal: AbortSignal.timeout(APPEEARS_TIMEOUTS.login),
   });
 
   if (!response.ok) {
@@ -82,6 +94,7 @@ export async function getModisCatalogue() {
     headers: {
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
+    signal: AbortSignal.timeout(APPEEARS_TIMEOUTS.catalogue),
   });
 
   if (!response.ok) {
@@ -133,6 +146,7 @@ export async function submitAppeearsPointTask({
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(APPEEARS_TIMEOUTS.taskSubmit),
   });
 
   if (!response.ok) {
@@ -153,6 +167,7 @@ export async function getAppeearsTaskStatus(taskId) {
       Authorization: `Bearer ${token}`,
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
+    signal: AbortSignal.timeout(APPEEARS_TIMEOUTS.status),
   });
 
   if (!response.ok) {
@@ -172,6 +187,7 @@ export async function getAppeearsBundle(taskId) {
       Authorization: `Bearer ${token}`,
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
+    signal: AbortSignal.timeout(APPEEARS_TIMEOUTS.bundle),
   });
 
   if (!response.ok) {
@@ -191,6 +207,7 @@ export async function downloadAppeearsFile(taskId, fileId) {
       Authorization: `Bearer ${token}`,
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
     },
+    signal: AbortSignal.timeout(APPEEARS_TIMEOUTS.fileDownload),
   });
 
   if (!response.ok) {

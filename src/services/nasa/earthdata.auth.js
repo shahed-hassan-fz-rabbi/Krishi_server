@@ -15,11 +15,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-let cachedAppeearsToken = null;
-let tokenExpiresAt = null;
+// AppEEARS token caching lives in appeears.client.js (loginAppeears).
+// This module only resolves credentials and verifies them against NASA Harmony.
 
-const APPEEARS_LOGIN_URL = "https://appeears.earthdatacloud.nasa.gov/api/v1/login";
 const HARMONY_BASE_URL = "https://harmony.earthdata.nasa.gov";
+// Bounded verification requests: authentication checks must never hang a job.
+const HARMONY_VERIFY_TIMEOUT_MS = 15000;
 
 /**
  * Searches for credentials in ~/.netrc or ~/_netrc.
@@ -149,6 +150,7 @@ export async function verifyHarmonyAuth() {
         "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
       },
       redirect: "manual",
+      signal: AbortSignal.timeout(HARMONY_VERIFY_TIMEOUT_MS),
     });
 
     if (res.status === 200) {
@@ -183,6 +185,7 @@ export async function verifyHarmonyAuth() {
             Authorization: getEarthdataAuthHeader(),
             "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026)",
           },
+          signal: AbortSignal.timeout(HARMONY_VERIFY_TIMEOUT_MS),
         });
         if (followRes.ok) {
           return {

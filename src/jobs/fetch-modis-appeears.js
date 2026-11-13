@@ -39,6 +39,50 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Bounded download retry (matches the Stage 2/3 reliability pattern):
+// transient AppEEARS result-host failures get 3 attempts max, then fail loudly.
+const DOWNLOAD_ATTEMPTS = 3;
+const DOWNLOAD_RETRY_DELAY_MS = 2000;
+
+async function downloadAppeearsFileWithRetry(taskId, fileId) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+    try {
+      return await downloadAppeearsFile(taskId, fileId);
+    } catch (error) {
+      lastError = error;
+      if (attempt < DOWNLOAD_ATTEMPTS) await sleep(DOWNLOAD_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
+}
+
+async function getAppeearsTaskStatusWithRetry(taskId) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+    try {
+      return await getAppeearsTaskStatus(taskId);
+    } catch (error) {
+      lastError = error;
+      if (attempt < DOWNLOAD_ATTEMPTS) await sleep(DOWNLOAD_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
+}
+
+async function getAppeearsBundleWithRetry(taskId) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+    try {
+      return await getAppeearsBundle(taskId);
+    } catch (error) {
+      lastError = error;
+      if (attempt < DOWNLOAD_ATTEMPTS) await sleep(DOWNLOAD_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
+}
+
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
@@ -82,22 +126,37 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. Submit Point Task
-  const taskName = `krishi_mama_modis_${Date.now()}`;
-  console.log(`\n[1/5] Submitting point sampling task (${taskName})...`);
-  const submission = await submitAppeearsPointTask({
-    taskName,
-    startDate: "01-01-2024",
-    endDate: "01-31-2024",
-    coordinates: [
-      { id: "cumilla", latitude: 23.46186, longitude: 91.18503, category: "district_ref" },
-      { id: "chattogram", latitude: 22.3384, longitude: 91.8317, category: "district_ref" },
-    ],
-  });
+  // Optional resume mode: `node src/jobs/fetch-modis-appeears.js --task=<id>`
+  // continues an already-submitted AppEEARS task instead of creating a duplicate.
+  // Default behavior (no argument) is unchanged: submit a fresh task.
+  const resumeTaskId = process.argv.find((arg) => arg.startsWith("--task="))?.slice(7) ?? "";
+  const TASK_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const taskId = submission.task_id;
-  console.log(`  -> Task ID: ${taskId}`);
-  console.log(`  -> Initial Status: ${submission.status}`);
+  let taskId;
+  if (resumeTaskId) {
+    if (!TASK_ID_RE.test(resumeTaskId)) {
+      throw new Error("--task expects a valid AppEEARS task UUID");
+    }
+    taskId = resumeTaskId;
+    console.log(`\n[1/5] Resuming existing AppEEARS task (${taskId}) — no new task submitted.`);
+  } else {
+    // 1. Submit Point Task
+    const taskName = `krishi_mama_modis_${Date.now()}`;
+    console.log(`\n[1/5] Submitting point sampling task (${taskName})...`);
+    const submission = await submitAppeearsPointTask({
+      taskName,
+      startDate: "01-01-2024",
+      endDate: "01-31-2024",
+      coordinates: [
+        { id: "cumilla", latitude: 23.46186, longitude: 91.18503, category: "district_ref" },
+        { id: "chattogram", latitude: 22.3384, longitude: 91.8317, category: "district_ref" },
+      ],
+    });
+
+    taskId = submission.task_id;
+    console.log(`  -> Task ID: ${taskId}`);
+    console.log(`  -> Initial Status: ${submission.status}`);
+  }
 
   // 2. Poll Task Status
   console.log(`\n[2/5] Monitoring AppEEARS task progress...`);
@@ -108,7 +167,7 @@ async function main() {
   while (!isDone && attempts < maxAttempts) {
     attempts++;
     await sleep(15000); // 15s interval
-    const statusResp = await getAppeearsTaskStatus(taskId);
+    const statusResp = await getAppeearsTaskStatusWithRetry(taskId);
     const progress = statusResp.progress?.percent || 0;
     const currentState = statusResp.status;
     console.log(`  -> [${new Date().toISOString()}] Attempt ${attempts}: State = ${currentState}, Progress = ${progress}%`);
@@ -127,21 +186,34 @@ async function main() {
 
   // 3. Fetch Bundle
   console.log(`\n[3/5] Fetching bundle file list for task ${taskId}...`);
-  const bundle = await getAppeearsBundle(taskId);
-  fs.writeFileSync(path.join(rawDir, `bundle_${taskId}.json`), JSON.stringify(bundle, null, 2));
-
+  const bundle = await getAppeearsBundleWithRetry(taskId);
   console.log(`  -> Found ${bundle.files.length} files in task bundle:`);
   bundle.files.forEach((f) => {
     console.log(`     - [${f.file_type}] ${f.file_name} (${(f.file_size / 1024).toFixed(1)} KB)`);
   });
 
+  // No-overwrite policy: bundle metadata files from previous tasks are evidence
+  // and are never truncated. New task IDs cannot collide in practice, but the
+  // exclusive-create flag guarantees it.
+  const bundlePath = path.join(rawDir, `bundle_${taskId}.json`);
+  if (fs.existsSync(bundlePath)) {
+    console.log(`  -> bundle_${taskId}.json already present, skipping (no-overwrite).`);
+  } else {
+    fs.writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), { flag: "wx" });
+  }
+
   // 4. Download files
   console.log(`\n[4/5] Downloading bundle files to server/data/modis/raw/...`);
   const downloadedFiles = [];
   for (const f of bundle.files) {
-    const fileBuf = await downloadAppeearsFile(taskId, f.file_id);
     const destPath = path.join(rawDir, f.file_name);
-    fs.writeFileSync(destPath, Buffer.from(fileBuf));
+    if (fs.existsSync(destPath)) {
+      console.log(`  -> Already present, skipping download (no-overwrite): ${f.file_name}`);
+      downloadedFiles.push({ ...f, localPath: destPath });
+      continue;
+    }
+    const fileBuf = await downloadAppeearsFileWithRetry(taskId, f.file_id);
+    fs.writeFileSync(destPath, Buffer.from(fileBuf), { flag: "wx" });
     downloadedFiles.push({ ...f, localPath: destPath });
     console.log(`  -> Downloaded: ${f.file_name}`);
   }
@@ -242,9 +314,14 @@ async function main() {
     });
   }
 
-  // Save parsed observations to disk for review
-  const parsedPath = path.join(parsedDir, "parsed_modis_observations.json");
-  fs.writeFileSync(parsedPath, JSON.stringify(parsedObservations, null, 2));
+  // Save parsed observations to disk for review.
+  // No-overwrite policy: the 2026-11-08 parsed output is preserved as evidence;
+  // a fresh run writes a task-stamped file instead of truncating it.
+  let parsedPath = path.join(parsedDir, "parsed_modis_observations.json");
+  if (fs.existsSync(parsedPath)) {
+    parsedPath = path.join(parsedDir, `parsed_modis_observations_${taskId}.json`);
+  }
+  fs.writeFileSync(parsedPath, JSON.stringify(parsedObservations, null, 2), { flag: "wx" });
 
   console.log(`\n=========================================================`);
   console.log(`                VALIDATION SUMMARY RESULTS               `);

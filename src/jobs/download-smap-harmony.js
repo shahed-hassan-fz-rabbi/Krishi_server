@@ -42,6 +42,33 @@ const DISTRICT_CONFIGS = [
 
 const TARGET_START = "2024-01-01T00:00:00Z";
 const TARGET_END = "2024-01-03T23:59:59Z";
+// Bounded request timeouts (Phase 5 reliability); the poll loop itself is
+// already bounded (maxAttempts), so each individual poll request cannot hang it.
+const TIMEOUT_MS = { submit: 30000, poll: 15000, file: 120000 };
+// Bounded download retry: transient result-host failures get 3 attempts max.
+const DOWNLOAD_ATTEMPTS = 3;
+const DOWNLOAD_RETRY_DELAY_MS = 2000;
+
+/** Downloads one result file with bounded attempts; never stores partial bodies. */
+async function downloadFileWithRetry(fileUrl, authHeader) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+    try {
+      const fileRes = await fetch(fileUrl, {
+        headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" },
+        signal: AbortSignal.timeout(TIMEOUT_MS.file),
+      });
+      if (!fileRes.ok) throw new Error(`HTTP ${fileRes.status} from result host`);
+      return Buffer.from(await fileRes.arrayBuffer());
+    } catch (error) {
+      lastError = error;
+      if (attempt < DOWNLOAD_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_RETRY_DELAY_MS));
+      }
+    }
+  }
+  throw lastError;
+}
 
 async function processDistrict(dist, authHeader) {
   console.log(`\n=============================================================`);
@@ -62,6 +89,7 @@ async function processDistrict(dist, authHeader) {
       Authorization: authHeader,
       "User-Agent": "KrishiMama/1.0 (NASA Space Apps Challenge 2026; Team NeuralMesh)",
     },
+    signal: AbortSignal.timeout(TIMEOUT_MS.submit),
   });
 
   if (!initRes.ok) {
@@ -87,6 +115,7 @@ async function processDistrict(dist, authHeader) {
 
     const pollRes = await fetch(pollUrl, {
       headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" },
+      signal: AbortSignal.timeout(TIMEOUT_MS.poll),
     });
 
     if (pollRes.ok) {
@@ -113,16 +142,23 @@ async function processDistrict(dist, authHeader) {
     const fileName = path.basename(new URL(fileUrl).pathname) || `${dist.code}_subset_${i + 1}.nc4`;
     const destPath = path.join(rawDir, fileName);
 
-    console.log(`  Downloading ${fileName}...`);
-    const fileRes = await fetch(fileUrl, {
-      headers: { Authorization: authHeader, "User-Agent": "KrishiMama/1.0" },
-    });
-
-    if (fileRes.ok) {
-      const arrayBuffer = await fileRes.arrayBuffer();
-      fs.writeFileSync(destPath, Buffer.from(arrayBuffer));
-      console.log(`  Saved to ${destPath} (${(arrayBuffer.byteLength / 1024).toFixed(1)} KB)`);
+    if (fs.existsSync(destPath)) {
+      // No-overwrite policy: existing artifacts are preserved as evidence and are
+      // still passed to the parser for independent re-validation.
+      console.log(`  Already present, skipping download (no-overwrite): ${fileName}`);
       downloadedFiles.push(destPath);
+      continue;
+    }
+
+    console.log(`  Downloading ${fileName}...`);
+    try {
+      const bytes = await downloadFileWithRetry(fileUrl, authHeader);
+      // Exclusive create: guarantees an existing artifact can never be truncated.
+      fs.writeFileSync(destPath, bytes, { flag: "wx" });
+      console.log(`  Saved to ${destPath} (${(bytes.length / 1024).toFixed(1)} KB)`);
+      downloadedFiles.push(destPath);
+    } catch (error) {
+      console.error(`  Download failed after ${DOWNLOAD_ATTEMPTS} bounded attempts: ${error.message}`);
     }
   }
 

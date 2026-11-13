@@ -1,0 +1,3206 @@
+{
+  "generatedAt": "2026-11-13T06:07:34.598Z",
+  "targetDatabase": "krishi_mama (pending Step-4 approval; NOT yet created or connected)",
+  "records": [
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 0.97,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 17.72,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 16.79,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 16.97,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 16.7,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 16.65,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 17.82,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 17.77,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 23.92,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 23.13,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 23.58,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 22.98,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 23.03,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 24.12,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 24,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 12.6,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 11.85,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 11.81,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 11,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 11.25,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 11.92,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 13.5,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 84.91,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 86.98,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 82.25,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 84.19,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 83.91,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 77.37,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 78.45,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 13.14,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 12.36,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 10.34,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 8.33,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 13.82,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 15.51,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 15.23,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_cumilla_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "PRECTOTCORR",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 0,
+      "sentinelValue": null,
+      "unit": "mm/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 19.18,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 18.56,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 18.43,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 17.95,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 17.55,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 17.97,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 18.7,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 24.58,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 23.85,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 23.77,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 23.81,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 23.73,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 24.37,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MAX",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 24.34,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 14.75,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 14.34,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 13.73,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 13,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 12.84,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 12.59,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "T2M_MIN",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 14.51,
+      "sentinelValue": null,
+      "unit": "C",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 83.31,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 83.86,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 80.8,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 82.45,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 83.09,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 77.54,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "RH2M",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 76.58,
+      "sentinelValue": null,
+      "unit": "%",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "ok",
+      "value": 15.59,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-02"
+      },
+      "quality": "ok",
+      "value": 16.65,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-03"
+      },
+      "quality": "ok",
+      "value": 13.92,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-04"
+      },
+      "quality": "ok",
+      "value": 13.75,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-05"
+      },
+      "quality": "ok",
+      "value": 16.07,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-06",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-06"
+      },
+      "quality": "ok",
+      "value": 16.15,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "POWER",
+      "datasetKey": "nasa:power:daily:point",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-07",
+      "timeStandard": "LST (historical climate — never live weather)",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "parameter": "ALLSKY_SFC_SW_DWN",
+        "dateLabel": "2024-01-07"
+      },
+      "quality": "ok",
+      "value": 16,
+      "sentinelValue": null,
+      "unit": "MJ/m^2/day",
+      "provenance": {
+        "api": "POWER Daily API v2.10.3",
+        "sources": [
+          "MERRA2",
+          "SYN1DEG",
+          "POWER"
+        ],
+        "endpoint": "https://power.larc.nasa.gov/api/temporal/daily/point",
+        "responseFile": "data/power/raw/power_chattogram_20240101_20240107_response.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-02",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240102_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240102_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "338925c8a54e0ec4d0009fc1854be29cd40076f250b9b1aad38520cd5a9398cd",
+        "parser": "science/smap_parser.py"
+      },
+      "quality": "ok (flag 8, recommended)",
+      "soilMoisture": 0.3003,
+      "unit": "m^3/m^3",
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-03",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240103_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240103_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "f1d79ac1744ca227a638e203b8da8b1d3d6fad6efbc8aaf7512a4bbae7acb5d1",
+        "parser": "science/smap_parser.py"
+      },
+      "quality": "ok (flag 8, recommended)",
+      "soilMoisture": 0.4259,
+      "unit": "m^3/m^3",
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-05",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240105_R19240_002.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240105_R19240_002_subsetted.nc4",
+        "sourceFileSha256": "8d822510818d79f887947d3a36311aa1f0d33087e6cfc05f54bb33fc95b91de6",
+        "parser": "science/smap_parser.py"
+      },
+      "quality": "ok (flag 8, recommended)",
+      "soilMoisture": 0.3497,
+      "unit": "m^3/m^3",
+      "documentedInExistingTestDb": false,
+      "expectedOperation": "insert"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "intervalUtc": {
+        "start": "2024-01-01T00:00:00Z",
+        "end": "2024-01-01T00:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S000000-E002959.0000.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S000000-E002959.0000.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S000000-E002959.0000.V07B.HDF5",
+        "sourceFileSha256": "c69139d495dcea2679d421f906d7064d58c589155988c84062e249c16ac39d09",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "intervalUtc": {
+        "start": "2024-01-01T00:00:00Z",
+        "end": "2024-01-01T00:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S000000-E002959.0000.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S000000-E002959.0000.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S000000-E002959.0000.V07B.HDF5",
+        "sourceFileSha256": "c69139d495dcea2679d421f906d7064d58c589155988c84062e249c16ac39d09",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "intervalUtc": {
+        "start": "2024-01-01T06:00:00Z",
+        "end": "2024-01-01T06:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S060000-E062959.0360.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S060000-E062959.0360.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S060000-E062959.0360.V07B.HDF5",
+        "sourceFileSha256": "c468745d0b15ece099314285fba5ac1e891b4a387806be5f46dc5dca965fdedc",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "intervalUtc": {
+        "start": "2024-01-01T06:00:00Z",
+        "end": "2024-01-01T06:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S060000-E062959.0360.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S060000-E062959.0360.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S060000-E062959.0360.V07B.HDF5",
+        "sourceFileSha256": "c468745d0b15ece099314285fba5ac1e891b4a387806be5f46dc5dca965fdedc",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "intervalUtc": {
+        "start": "2024-01-01T12:00:00Z",
+        "end": "2024-01-01T12:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S120000-E122959.0720.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S120000-E122959.0720.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S120000-E122959.0720.V07B.HDF5",
+        "sourceFileSha256": "c6d61e2bcdca9e5db5d87c03c55bcc3ff29f6e5b4ae5fd8f5a1c3d882d374e75",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "intervalUtc": {
+        "start": "2024-01-01T12:00:00Z",
+        "end": "2024-01-01T12:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S120000-E122959.0720.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S120000-E122959.0720.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S120000-E122959.0720.V07B.HDF5",
+        "sourceFileSha256": "c6d61e2bcdca9e5db5d87c03c55bcc3ff29f6e5b4ae5fd8f5a1c3d882d374e75",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "intervalUtc": {
+        "start": "2024-01-01T18:00:00Z",
+        "end": "2024-01-01T18:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S180000-E182959.1080.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S180000-E182959.1080.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S180000-E182959.1080.V07B.HDF5",
+        "sourceFileSha256": "4353b072616c9361d47f252683f00b63821807dc177680096e4e7bef6aa85e02",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "GPM",
+      "datasetKey": "nasa:gpm:imerg:3imerghh:v07",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "intervalUtc": {
+        "start": "2024-01-01T18:00:00Z",
+        "end": "2024-01-01T18:30:00Z"
+      },
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S180000-E182959.1080.V07B.HDF5"
+      },
+      "quality": "valid",
+      "precipitationRateMmHr": 0,
+      "precipitationMm": 0,
+      "unit": "mm/hr",
+      "provenance": {
+        "product": "GPM_3IMERGHH Final V07B",
+        "algorithmVersion": "3IMERGH_7.0",
+        "granuleId": "3B-HHR.MS.MRG.3IMERG.20240101-S180000-E182959.1080.V07B.HDF5",
+        "sourceFile": "data/gpm/raw/3B-HHR.MS.MRG.3IMERG.20240101-S180000-E182959.1080.V07B.HDF5",
+        "sourceFileSha256": "4353b072616c9361d47f252683f00b63821807dc177680096e4e7bef6aa85e02",
+        "accessFlow": "CMR → Earthdata 303 → signed host",
+        "dailyTotalRule": "local day 2024-01-01 = 3/48, 2024-01-02 = 1/48 → incomplete → NO daily total"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "MODIS",
+      "datasetKey": "nasa:modis:mod13q1:v061",
+      "districtCode": "chattogram",
+      "observationDate": "2023-12-19",
+      "compositeDayOfYear": 359,
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2023-12-19"
+      },
+      "quality": "good_data (rank 0)",
+      "ndvi": 0.2853,
+      "evi": 0.1294,
+      "isReliableQuality": true,
+      "provenance": {
+        "product": "MOD13Q1.061",
+        "appeearsTaskId": "e0405649-2665-439d-87eb-a08608108fcd",
+        "granules": [
+          "MOD13Q1.A2023353.h26v06.061",
+          "MOD13Q1.A2024001.h26v06.061",
+          "MOD13Q1.A2024017.h26v06.061"
+        ],
+        "resultsCsvSha256": "0a36ef7ea5e351427b6d264a704878055511625fe3dd0a1d6e7e8aec0b0fa193",
+        "sourceFile": "data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "MODIS",
+      "datasetKey": "nasa:modis:mod13q1:v061",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "compositeDayOfYear": 1,
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "good_data (rank 0)",
+      "ndvi": 0.3835,
+      "evi": 0.2294,
+      "isReliableQuality": true,
+      "provenance": {
+        "product": "MOD13Q1.061",
+        "appeearsTaskId": "e0405649-2665-439d-87eb-a08608108fcd",
+        "granules": [
+          "MOD13Q1.A2023353.h26v06.061",
+          "MOD13Q1.A2024001.h26v06.061",
+          "MOD13Q1.A2024017.h26v06.061"
+        ],
+        "resultsCsvSha256": "0a36ef7ea5e351427b6d264a704878055511625fe3dd0a1d6e7e8aec0b0fa193",
+        "sourceFile": "data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "MODIS",
+      "datasetKey": "nasa:modis:mod13q1:v061",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-17",
+      "compositeDayOfYear": 28,
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-17"
+      },
+      "quality": "good_data (rank 0)",
+      "ndvi": 0.3323,
+      "evi": 0.1434,
+      "isReliableQuality": true,
+      "provenance": {
+        "product": "MOD13Q1.061",
+        "appeearsTaskId": "e0405649-2665-439d-87eb-a08608108fcd",
+        "granules": [
+          "MOD13Q1.A2023353.h26v06.061",
+          "MOD13Q1.A2024001.h26v06.061",
+          "MOD13Q1.A2024017.h26v06.061"
+        ],
+        "resultsCsvSha256": "0a36ef7ea5e351427b6d264a704878055511625fe3dd0a1d6e7e8aec0b0fa193",
+        "sourceFile": "data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "MODIS",
+      "datasetKey": "nasa:modis:mod13q1:v061",
+      "districtCode": "cumilla",
+      "observationDate": "2023-12-19",
+      "compositeDayOfYear": 364,
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2023-12-19"
+      },
+      "quality": "good_data (rank 0)",
+      "ndvi": 0.3434,
+      "evi": 0.1527,
+      "isReliableQuality": true,
+      "provenance": {
+        "product": "MOD13Q1.061",
+        "appeearsTaskId": "e0405649-2665-439d-87eb-a08608108fcd",
+        "granules": [
+          "MOD13Q1.A2023353.h26v06.061",
+          "MOD13Q1.A2024001.h26v06.061",
+          "MOD13Q1.A2024017.h26v06.061"
+        ],
+        "resultsCsvSha256": "0a36ef7ea5e351427b6d264a704878055511625fe3dd0a1d6e7e8aec0b0fa193",
+        "sourceFile": "data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "MODIS",
+      "datasetKey": "nasa:modis:mod13q1:v061",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "compositeDayOfYear": 7,
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-01"
+      },
+      "quality": "marginal_data (rank 1 — MARGINAL, kept separate from primary valid data)",
+      "ndvi": 0.3068,
+      "evi": 0.139,
+      "isReliableQuality": false,
+      "provenance": {
+        "product": "MOD13Q1.061",
+        "appeearsTaskId": "e0405649-2665-439d-87eb-a08608108fcd",
+        "granules": [
+          "MOD13Q1.A2023353.h26v06.061",
+          "MOD13Q1.A2024001.h26v06.061",
+          "MOD13Q1.A2024017.h26v06.061"
+        ],
+        "resultsCsvSha256": "0a36ef7ea5e351427b6d264a704878055511625fe3dd0a1d6e7e8aec0b0fa193",
+        "sourceFile": "data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    },
+    {
+      "dataset": "MODIS",
+      "datasetKey": "nasa:modis:mod13q1:v061",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-17",
+      "compositeDayOfYear": 28,
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-17"
+      },
+      "quality": "marginal_data (rank 1 — MARGINAL, kept separate from primary valid data)",
+      "ndvi": 0.2865,
+      "evi": 0.1323,
+      "isReliableQuality": false,
+      "provenance": {
+        "product": "MOD13Q1.061",
+        "appeearsTaskId": "e0405649-2665-439d-87eb-a08608108fcd",
+        "granules": [
+          "MOD13Q1.A2023353.h26v06.061",
+          "MOD13Q1.A2024001.h26v06.061",
+          "MOD13Q1.A2024017.h26v06.061"
+        ],
+        "resultsCsvSha256": "0a36ef7ea5e351427b6d264a704878055511625fe3dd0a1d6e7e8aec0b0fa193",
+        "sourceFile": "data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json"
+      },
+      "documentedInExistingTestDb": true,
+      "expectedOperation": "insert (into fresh krishi_mama) / skip-match (if targeting existing test db)"
+    }
+  ],
+  "rejected": [
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-01",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240101_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240101_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "98f63d3de13db28068a0ae25d8cf51cb106037679f61def7ef951291018a01ff",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-01",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-01",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240101_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240101_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "98f63d3de13db28068a0ae25d8cf51cb106037679f61def7ef951291018a01ff",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-02",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-02",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240102_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240102_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "338925c8a54e0ec4d0009fc1854be29cd40076f250b9b1aad38520cd5a9398cd",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-03",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-03",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240103_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240103_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "f1d79ac1744ca227a638e203b8da8b1d3d6fad6efbc8aaf7512a4bbae7acb5d1",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-04",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240104_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240104_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "06916f5bccba6e992956655be3d22caa79c50934c45808b9f8822600b51e991c",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-04",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-04",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240104_R19240_001.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240104_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "06916f5bccba6e992956655be3d22caa79c50934c45808b9f8822600b51e991c",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "cumilla",
+      "observationDate": "2024-01-05",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "cumilla",
+        "dateLabel": "2024-01-05",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240105_R19240_002.h5",
+        "sourceFile": "data/smap/raw/cumilla/SMAP_L3_SM_P_E_20240105_R19240_002_subsetted.nc4",
+        "sourceFileSha256": "8d822510818d79f887947d3a36311aa1f0d33087e6cfc05f54bb33fc95b91de6",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-01",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240101_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240101_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "5299f01fcff3ea38d24d71b04794e17b2a1befeb33ca2e3d7af15671083299c4",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-01",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-01",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240101_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240101_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "5299f01fcff3ea38d24d71b04794e17b2a1befeb33ca2e3d7af15671083299c4",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-02",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240102_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240102_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "37fbf83ff465381cdbce917939f3b2bbe9c32f07d55925608fda55711a5210d4",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "retrieval_qual_flag_9_not_accepted (flags 0/8 only)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-02",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-02",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240102_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240102_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "37fbf83ff465381cdbce917939f3b2bbe9c32f07d55925608fda55711a5210d4",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-03",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240103_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240103_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "b76a695d0f827197b611edaf8a100c0db7652572b9720995778716580c5d0859",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "retrieval_qual_flag_9_not_accepted (flags 0/8 only)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-03",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-03",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240103_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240103_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "b76a695d0f827197b611edaf8a100c0db7652572b9720995778716580c5d0859",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "retrieval_qual_flag_9_not_accepted (flags 0/8 only)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-04",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240104_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240104_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "c6dfde996752dea453d3d20febb7ea5165be06091b224bee2c39b4fcd10bd610",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-04",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-04",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240104_R19240_001.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240104_R19240_001_subsetted.nc4",
+        "sourceFileSha256": "c6dfde996752dea453d3d20febb7ea5165be06091b224bee2c39b4fcd10bd610",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "orbit": "AM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-05",
+        "orbit": "AM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240105_R19240_002.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240105_R19240_002_subsetted.nc4",
+        "sourceFileSha256": "862e7545fad89d31a93a11ac1fa20138284fcc8b371cb35abfda5888ce7449bf",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "fill_value_excluded (never stored, never zero)"
+    },
+    {
+      "dataset": "SMAP",
+      "datasetKey": "nasa:smap:spl3smp_e:v006",
+      "districtCode": "chattogram",
+      "observationDate": "2024-01-05",
+      "orbit": "PM",
+      "uniqueKey": {
+        "districtCode": "chattogram",
+        "dateLabel": "2024-01-05",
+        "orbit": "PM"
+      },
+      "provenance": {
+        "product": "SPL3SMP_E V006",
+        "producerGranuleId": "SMAP_L3_SM_P_E_20240105_R19240_002.h5",
+        "sourceFile": "data/smap/raw/chattogram/SMAP_L3_SM_P_E_20240105_R19240_002_subsetted.nc4",
+        "sourceFileSha256": "862e7545fad89d31a93a11ac1fa20138284fcc8b371cb35abfda5888ce7449bf",
+        "parser": "science/smap_parser.py"
+      },
+      "expectedOperation": "reject",
+      "reason": "retrieval_qual_flag_9_not_accepted (flags 0/8 only)"
+    }
+  ],
+  "summary": {
+    "countsByDataset": {
+      "POWER": 84,
+      "SMAP": 3,
+      "GPM": 8,
+      "MODIS": 6
+    },
+    "totalRecords": 101,
+    "totalRejected": 17,
+    "rejectedBreakdown": {
+      "SMAP:fill_value_excluded": 13,
+      "SMAP:retrieval_qual_flag_9_not_accepted": 4
+    },
+    "dailyTotals": "NONE — GPM local days incomplete (3/48, 1/48); no daily-total record exists in this manifest",
+    "zeroConversion": "no missing/fill/rejected value is converted to zero anywhere in the manifest",
+    "freshDatabaseImplication": "targeting a fresh krishi_mama database → all records are inserts; targeting the existing test database → documented-coverage records become idempotent skip/match instead"
+  }
+}
