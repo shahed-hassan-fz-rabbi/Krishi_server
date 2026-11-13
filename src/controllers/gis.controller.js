@@ -24,6 +24,7 @@ import { errorResponse, successResponse } from "../utils/response.js";
 import { snapshotService } from "../services/snapshot.service.js";
 import { gpmFinalDistrictFilter, summarizeGpmLocalDay } from "../services/nasa/gpm.validation.js";
 import { findLatestGoodModisObservation, isGoodModisObservation, latestGoodModisSnapshot } from "../services/nasa/modis.quality.js";
+import { findLatestRecommendedSmapObservation, latestRecommendedSmapSnapshot } from "../services/nasa/smap.quality.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -152,7 +153,7 @@ export async function getGisBoundaries(req, res, next) {
  */
 export async function getGisLayers(req, res, next) {
   try {
-    const districtCode = (req.query.district || "cumilla").trim().toLowerCase();
+    const districtCode = (req.query.district || "").trim().toLowerCase();
     const mapping = DISTRICT_MAP[districtCode];
 
     if (!mapping) {
@@ -175,16 +176,7 @@ export async function getGisLayers(req, res, next) {
 
     if (snapshotService.isDbConnected()) {
       try {
-        latestSmap = await SmapObservation.findOne({
-          districtCode,
-          datasetKey: SMAP.datasetKey,
-          retrievalQualityFlag: { $in: [0, 8] },
-          isRecommendedQuality: true,
-          qualityClassification: "recommended",
-          soilMoisture: { $type: "number", $gte: SMAP.minValid, $lte: SMAP.maxValid },
-        })
-          .sort({ dateLabel: -1 })
-          .lean();
+        latestSmap = await findLatestRecommendedSmapObservation(SmapObservation, districtCode);
       } catch {
         latestSmap = null;
       }
@@ -214,15 +206,7 @@ export async function getGisLayers(req, res, next) {
 
     if (!latestSmap) {
       const smapSnap = snapshotService.getSmapSnapshot(districtCode);
-      latestSmap = (smapSnap?.observations || [])
-        .filter((observation) => observation.districtCode === districtCode &&
-          observation.datasetKey === SMAP.datasetKey &&
-          [0, 8].includes(observation.retrievalQualityFlag) &&
-          observation.isRecommendedQuality === true &&
-          observation.qualityClassification === "recommended" &&
-          Number.isFinite(observation.soilMoisture) &&
-          observation.soilMoisture >= SMAP.minValid && observation.soilMoisture <= SMAP.maxValid)
-        .sort((a, b) => String(b.dateLabel).localeCompare(String(a.dateLabel)))[0] || null;
+      latestSmap = latestRecommendedSmapSnapshot(smapSnap, districtCode);
     }
 
     if (!latestModis) {

@@ -12,15 +12,10 @@ import { assessAgriculturalRisks } from "../src/services/weather/risk.engine.js"
 import { getLiveForecast } from "../src/services/weather/forecast.service.js";
 import { getSeasonalOutlook } from "../src/services/weather/seasonal.service.js";
 
-test("resolveLocationCoordinates - resolves centroids for all 8 divisions and districts", () => {
+test("resolveLocationCoordinates - resolves the two supported districts only", () => {
   const divisions = ["dhaka", "chattogram", "rajshahi", "khulna", "barishal", "sylhet", "rangpur", "mymensingh"];
 
-  for (const div of divisions) {
-    const loc = resolveLocationCoordinates(div);
-    assert.ok(loc.latitude > 20 && loc.latitude < 27, `Invalid latitude for ${div}: ${loc.latitude}`);
-    assert.ok(loc.longitude > 88 && loc.longitude < 93, `Invalid longitude for ${div}: ${loc.longitude}`);
-    assert.ok(loc.type === "division_centroid" || loc.type === "district_centroid");
-  }
+  for (const div of divisions) assert.equal(resolveLocationCoordinates(div), null, `${div} is outside the current district scope`);
 
   // District resolution
   const cumilla = resolveLocationCoordinates("cumilla");
@@ -135,7 +130,7 @@ test("assessAgriculturalRisks - evaluates squall / high wind gusts (>=55 km/h)",
 });
 
 test("getLiveForecast - retrieves structured forecast with 7-day short-range and 9-day extended", async () => {
-  const forecast = await getLiveForecast({ locationIdentifier: "Sylhet" });
+  const forecast = await getLiveForecast({ locationIdentifier: "Cumilla" });
 
   assert.ok(forecast.location);
   assert.equal(forecast.shortRangeForecast.length, 7);
@@ -146,7 +141,7 @@ test("getLiveForecast - retrieves structured forecast with 7-day short-range and
 });
 
 test("getSeasonalOutlook - retrieves 6-week subseasonal and 3-month seasonal blocks", async () => {
-  const outlook = await getSeasonalOutlook({ locationIdentifier: "Rajshahi" });
+  const outlook = await getSeasonalOutlook({ locationIdentifier: "Chattogram" });
 
   assert.ok(outlook.location);
   assert.equal(outlook.subSeasonalWeeklyOutlook.length, 6);

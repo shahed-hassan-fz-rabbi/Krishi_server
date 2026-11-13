@@ -16,6 +16,8 @@ import { loadOfficialCropCalendars } from "./croplifecycle.service.js";
 import { SmapObservation } from "../models/smapobservation.model.js";
 import { ModisObservation } from "../models/modisobservation.model.js";
 import { snapshotService } from "./snapshot.service.js";
+import { findLatestRecommendedSmapObservation, latestRecommendedSmapSnapshot } from "./nasa/smap.quality.js";
+import { findLatestGoodModisObservation, latestGoodModisSnapshot } from "./nasa/modis.quality.js";
 
 /**
  * Evaluates candidate crops for a given district and land/water profile.
@@ -23,10 +25,10 @@ import { snapshotService } from "./snapshot.service.js";
 export function evaluateCropEligibility({
   districtCode,
   upazila,
-  landType = "medium_high",
+  landType = "unknown",
   soilType = "unknown",
-  drainage = "good",
-  irrigationAvailability = "available",
+  drainage = "unknown",
+  irrigationAvailability = "unknown",
   waterSource = "",
   seasonPreference = null,
   preferredCrop = null,
@@ -48,10 +50,16 @@ export function evaluateCropEligibility({
 
   // Identify missing optional inputs
   if (!soilType || soilType === "unknown") {
-    missingInfo.push("Soil type not specified (standard loamy assumptions applied; local DAE soil check recommended).");
+    missingInfo.push("Soil type not specified; soil-dependent suitability is incomplete. A local soil test is recommended.");
+  }
+  if (!landType || landType === "unknown" || landType === "unspecified") {
+    missingInfo.push("Land elevation/type not specified; land-dependent suitability is incomplete.");
   }
   if (!drainage || drainage === "unknown") {
-    missingInfo.push("Drainage condition unspecified (good to moderate drainage assumed).");
+    missingInfo.push("Drainage condition not provided; drainage-dependent suitability cannot be fully assessed.");
+  }
+  if (!irrigationAvailability || irrigationAvailability === "unknown") {
+    missingInfo.push("Irrigation availability not confirmed; water access cannot be assumed.");
   }
   if (!waterSource && irrigationAvailability !== "unavailable") {
     missingInfo.push("Water source unspecified.");
@@ -106,12 +114,18 @@ export function evaluateCropEligibility({
       } else if (irrigationAvailability === "limited") {
         suitabilityCategory = "potential";
         constraints.push(`Requires careful Alternate Wetting and Drying (AWD) water management due to limited irrigation (~${waterMm} mm demand).`);
-      } else {
+      } else if (irrigationAvailability === "available") {
         reasons.push(`Assured irrigation meets the ${waterMm} mm dry-season requirement for Boro rice.`);
+      } else {
+        suitabilityCategory = "potential";
+        constraints.push("Irrigation availability is unknown, so Boro water supply cannot be assessed from the provided profile.");
       }
     } else if (crop.cropId === "mustard") {
       if (irrigationAvailability === "available" || irrigationAvailability === "limited") {
         reasons.push(`Low moisture requirement (~${waterMm} mm) makes mustard highly compatible with residual soil moisture and 1-2 light supplemental irrigations.`);
+      } else if (irrigationAvailability === "unknown") {
+        suitabilityCategory = "potential";
+        constraints.push("Irrigation availability is unknown; residual soil moisture and supplemental water access must be checked locally.");
       } else {
         reasons.push(`Can be cultivated with residual soil moisture (~${waterMm} mm total requirement) following Aman harvest.`);
       }
@@ -188,7 +202,7 @@ export function evaluateCropEligibility({
     isValid: true,
     districtCode: lowerDistrict,
     districtName: lowerDistrict === "cumilla" ? "Cumilla" : "Chattogram",
-    upazila: upazila || "Selected Upazila",
+    upazila: upazila || null,
     crops: eligibleCrops,
     eligibleCrops,
     missingInfo,
@@ -201,34 +215,38 @@ export function evaluateCropEligibility({
  * Retrieves latest NASA environmental context for the planning district.
  */
 export async function getPlanningSatelliteContext(districtCode) {
-  const lowerDistrict = (districtCode || "cumilla").toLowerCase();
+  const lowerDistrict = typeof districtCode === "string" ? districtCode.trim().toLowerCase() : "";
+  if (!["cumilla", "chattogram"].includes(lowerDistrict)) {
+    return { districtCode: lowerDistrict || null, status: "UNAVAILABLE", reason: "unsupported_or_missing_district", smap: null, modis: null, soilMoistureProxy: null, vegetationIndexProxy: null };
+  }
   let smap = null;
   let modis = null;
 
   if (snapshotService.isDbConnected()) {
     try {
-      smap = await SmapObservation.findOne({ districtCode: lowerDistrict }).sort({ dateLabel: -1 }).lean();
-      modis = await ModisObservation.findOne({ districtCode: lowerDistrict }).sort({ dateLabel: -1 }).lean();
+      smap = await findLatestRecommendedSmapObservation(SmapObservation, lowerDistrict);
+      modis = await findLatestGoodModisObservation(ModisObservation, lowerDistrict);
     } catch {
       // Fallback
     }
   }
 
   if (!smap) {
-    smap = snapshotService.getSmapSnapshot(lowerDistrict)?.latest || null;
+    smap = latestRecommendedSmapSnapshot(snapshotService.getSmapSnapshot(lowerDistrict), lowerDistrict);
   }
   if (!modis) {
-    modis = snapshotService.getModisSnapshot(lowerDistrict)?.latest || null;
+    modis = latestGoodModisSnapshot(snapshotService.getModisSnapshot(lowerDistrict), lowerDistrict);
   }
 
   return {
     districtCode: lowerDistrict,
+    status: smap || modis ? "AVAILABLE" : "UNAVAILABLE",
     smap: smap
       ? {
           soilMoistureM3M3: smap.soilMoisture,
           unit: smap.unit || "m³/m³",
           dateLabel: smap.dateLabel,
-          qualityClassification: smap.qualityClassification || "recommended",
+          qualityClassification: smap.qualityClassification,
         }
       : null,
     modis: modis
@@ -236,7 +254,7 @@ export async function getPlanningSatelliteContext(districtCode) {
           ndviMean: modis.ndvi,
           eviMean: modis.evi,
           dateLabel: modis.dateLabel,
-          qualityClassification: modis.qualityClassification || "good_data",
+          qualityClassification: modis.qualityClassification,
         }
       : null,
     soilMoistureProxy: smap
@@ -244,7 +262,7 @@ export async function getPlanningSatelliteContext(districtCode) {
           value: smap.soilMoisture,
           unit: smap.unit || "m³/m³",
           observedDate: smap.dateLabel,
-          quality: smap.qualityClassification || "recommended",
+          quality: smap.qualityClassification,
           disclaimer: "NASA SMAP measures top 0-5 cm surface soil moisture proxy, not root-zone saturation.",
         }
       : null,
@@ -253,7 +271,7 @@ export async function getPlanningSatelliteContext(districtCode) {
           ndvi: modis.ndvi,
           evi: modis.evi,
           observedDate: modis.dateLabel,
-          quality: modis.qualityClassification || "good_data",
+          quality: modis.qualityClassification,
           disclaimer: "NASA MODIS 250m indicates regional canopy greenness, not a plant pathology diagnosis.",
         }
       : null,
@@ -306,8 +324,8 @@ Farmer & Plot Context:
 - District: ${evaluationResult.districtName} (${evaluationResult.districtCode})
 - Upazila: ${farmerProfile.upazila || "Not specified"}
 - Land Area: ${farmerProfile.land?.area || "N/A"} ${farmerProfile.land?.unit || "decimal"}
-- Land Type: ${farmerProfile.land?.landType || "medium_high"}
-- Irrigation Availability: ${farmerProfile.water?.irrigationAvailability || "available"}
+- Land Type: ${farmerProfile.land?.landType || "unknown / not supplied"}
+- Irrigation Availability: ${farmerProfile.water?.irrigationAvailability || "unknown"}
 
 Verified Eligible Crops from Official BAMIS / DAE Crop Calendars:
 ${evaluationResult.eligibleCrops
@@ -323,8 +341,8 @@ ${evaluationResult.eligibleCrops
   .join("\n")}
 
 NASA Environmental Satellite Context:
-- Surface Soil Moisture (SMAP 0-5 cm): ${environmentalContext.soilMoistureProxy ? `${environmentalContext.soilMoistureProxy.value} m³/m³ (Date: ${environmentalContext.soilMoistureProxy.observedDate})` : "Archived regional baseline"}
-- Regional Canopy Greenness (MODIS NDVI): ${environmentalContext.vegetationIndexProxy ? `${environmentalContext.vegetationIndexProxy.ndvi} (Date: ${environmentalContext.vegetationIndexProxy.observedDate})` : "Archived regional baseline"}
+- Surface Soil Moisture (SMAP 0-5 cm): ${environmentalContext.soilMoistureProxy ? `${environmentalContext.soilMoistureProxy.value} m³/m³ (Date: ${environmentalContext.soilMoistureProxy.observedDate})` : "Unavailable: no quality-approved observation is available; do not infer soil moisture."}
+- Regional Canopy Greenness (MODIS NDVI): ${environmentalContext.vegetationIndexProxy ? `${environmentalContext.vegetationIndexProxy.ndvi} (Date: ${environmentalContext.vegetationIndexProxy.observedDate})` : "Unavailable: no rank-0 quality observation is available; do not infer vegetation condition."}
 `;
 
       const geminiPromise = ai.models.generateContent({

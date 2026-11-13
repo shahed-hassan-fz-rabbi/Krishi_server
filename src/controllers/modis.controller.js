@@ -52,7 +52,7 @@ function latestEligibleSnapshotObservation(snapshot, district) {
 }
 
 function validateDistrict(code) {
-  const district = (code || "cumilla").trim().toLowerCase();
+  const district = (code || "").trim().toLowerCase();
   if (!VALID_DISTRICT_CODES.has(district)) {
     return {
       valid: false,

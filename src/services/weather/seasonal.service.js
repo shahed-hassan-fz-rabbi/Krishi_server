@@ -75,6 +75,9 @@ export async function getSeasonalOutlook({ latitude, longitude, locationIdentifi
       ? { latitude, longitude }
       : locationIdentifier
   );
+  if (!loc) {
+    throw providerDataError("A supported location or valid coordinate pair is required", 400);
+  }
 
   const cacheKey = getCacheKey(loc.latitude, loc.longitude);
   const now = Date.now();

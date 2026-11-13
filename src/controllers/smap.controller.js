@@ -11,6 +11,7 @@ import { errorResponse, successResponse } from "../utils/response.js";
 import { isEarthdataConfigured, verifyEarthdataAuth } from "../services/nasa/earthdata.auth.js";
 import { searchSmapGranules } from "../services/nasa/smap.client.js";
 import { snapshotService } from "../services/snapshot.service.js";
+import { isRecommendedSmapObservation, latestRecommendedSmapSnapshot } from "../services/nasa/smap.quality.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
 
@@ -18,7 +19,7 @@ const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code));
  * Validates district code.
  */
 function validateDistrict(code) {
-  const district = (code || "cumilla").trim().toLowerCase();
+  const district = (code || "").trim().toLowerCase();
   if (!VALID_DISTRICT_CODES.has(district)) {
     return {
       valid: false,
@@ -137,7 +138,7 @@ export async function getLatestSoilMoisture(req, res, next) {
       retrievalQualityFlag: { $in: [0, 8] },
       isRecommendedQuality: true,
       qualityClassification: "recommended",
-      soilMoisture: { $type: "number", $gte: 0, $lte: 1 },
+      soilMoisture: { $type: "number", $gte: SMAP.minValid, $lte: SMAP.maxValid, $ne: SMAP.fillValue },
     };
     const validObservationCount = await SmapObservation.countDocuments(recommendedFilter);
     if (validObservationCount === 0) {
@@ -156,10 +157,11 @@ export async function getLatestSoilMoisture(req, res, next) {
 
     if (!latestDoc) {
       const snapshot = snapshotService.getSmapSnapshot(district);
-      if (snapshot && snapshot.latest) {
+      const snapshotLatest = latestRecommendedSmapSnapshot(snapshot, district);
+      if (snapshotLatest) {
         const { data, meta } = buildSmapLatestPayload(
           district,
-          snapshot.latest,
+          snapshotLatest,
           null,
           null,
           true,
@@ -174,6 +176,9 @@ export async function getLatestSoilMoisture(req, res, next) {
         `No SMAP soil moisture observations are currently stored for district '${district}'. Ingestion job must be executed.`,
         "DATA_NOT_INGESTED"
       );
+    }
+    if (!isRecommendedSmapObservation(latestDoc, district)) {
+      return errorResponse(res, 503, "No quality-approved SMAP soil moisture observation is available.", "DATA_NO_VALID_OBSERVATIONS");
     }
     if (latestDoc.districtCode !== district) {
       return errorResponse(res, 500, "SMAP district isolation check failed.", "DATA_ISOLATION_VIOLATION");
@@ -198,10 +203,11 @@ export async function getLatestSoilMoisture(req, res, next) {
       const check = validateDistrict(req.query.district);
       if (check.valid) {
         const snapshot = snapshotService.getSmapSnapshot(check.district);
-        if (snapshot && snapshot.latest) {
+        const snapshotLatest = latestRecommendedSmapSnapshot(snapshot, check.district);
+        if (snapshotLatest) {
           const { data, meta } = buildSmapLatestPayload(
             check.district,
-            snapshot.latest,
+            snapshotLatest,
             null,
             null,
             true,
@@ -225,27 +231,27 @@ function buildSmapHistoryPayload(district, from, to, qualityFilter, docs, isSnap
   let unconfirmedCount = 0;
 
   const series = docs.map((d) => {
-    const isVal = d.soilMoisture !== null;
+    const isRecommended = isRecommendedSmapObservation(d, district);
+    const measurement = isRecommended ? d.soilMoisture : null;
+    const isVal = Number.isFinite(measurement);
     if (isVal) {
       totalValidCount += 1;
-      totalSumMoisture += d.soilMoisture;
-      if (d.isRecommendedQuality) {
-        recommendedCount += 1;
-        recommendedSumMoisture += d.soilMoisture;
-      } else {
-        unconfirmedCount += 1;
-      }
+      totalSumMoisture += measurement;
+      recommendedCount += 1;
+      recommendedSumMoisture += measurement;
+    } else {
+      unconfirmedCount += 1;
     }
 
     return {
       date: d.dateLabel,
       ingestedAt: d.createdAt || null,
       orbit: d.orbit,
-      soilMoisture: d.soilMoisture,
+      soilMoisture: measurement,
       qualityFlag: d.retrievalQualityFlag,
-      isRecommended: d.isRecommendedQuality,
+      isRecommended,
       qualityClassification:
-        d.qualityClassification || (d.isRecommendedQuality ? "recommended" : "not_recommended"),
+        isRecommended ? "recommended" : "not_recommended",
       surfaceFlag: d.surfaceFlag,
       qaBits: d.qaBits || null,
       geophysical: {
@@ -322,7 +328,7 @@ export async function getSoilMoistureHistory(req, res, next) {
           (d) => d.dateLabel >= from && d.dateLabel <= to
         );
         if (qualityFilter === "recommended") {
-          obs = obs.filter((d) => d.isRecommendedQuality);
+          obs = obs.filter((d) => isRecommendedSmapObservation(d, district));
         }
         if (obs.length > 0) {
           const { data, meta } = buildSmapHistoryPayload(
@@ -352,7 +358,11 @@ export async function getSoilMoistureHistory(req, res, next) {
     };
 
     if (qualityFilter === "recommended") {
+      query.retrievalQualityFlag = { $in: [0, 8] };
       query.isRecommendedQuality = true;
+      query.qualityClassification = "recommended";
+      query.datasetKey = SMAP.datasetKey;
+      query.soilMoisture = { $type: "number", $gte: SMAP.minValid, $lte: SMAP.maxValid, $ne: SMAP.fillValue };
     }
 
     const docs = await SmapObservation.find(query)
@@ -366,7 +376,7 @@ export async function getSoilMoistureHistory(req, res, next) {
           (d) => d.dateLabel >= from && d.dateLabel <= to
         );
         if (qualityFilter === "recommended") {
-          obs = obs.filter((d) => d.isRecommendedQuality);
+          obs = obs.filter((d) => isRecommendedSmapObservation(d, district));
         }
         if (obs.length > 0) {
           const { data, meta } = buildSmapHistoryPayload(

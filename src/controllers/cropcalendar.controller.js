@@ -15,8 +15,8 @@ import { fileURLToPath } from "url";
 import { SmapObservation } from "../models/smapobservation.model.js";
 import { ModisObservation } from "../models/modisobservation.model.js";
 import { MODIS } from "../config/modis.config.js";
-import { SMAP } from "../config/smap.config.js";
 import { findLatestGoodModisObservation, findLatestMarginalModisObservation } from "../services/nasa/modis.quality.js";
+import { findLatestRecommendedSmapObservation } from "../services/nasa/smap.quality.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -167,7 +167,7 @@ export async function getCropList(req, res, next) {
 export async function getCropCalendarAlignment(req, res, next) {
   try {
     const data = loadCropCalendars();
-    const districtCode = (req.query.district || "cumilla").trim().toLowerCase();
+    const districtCode = (req.query.district || "").trim().toLowerCase();
     const cropId = (req.query.crop || "monsoon_aman").trim().toLowerCase();
 
     if (!data.metadata.districts.includes(districtCode)) {
@@ -217,16 +217,7 @@ export async function getCropCalendarAlignment(req, res, next) {
     const isSeasonActive = isWeekInRange(currentWeek, districtCalendar.standardWeeksRange);
 
     // Retrieve latest SMAP observation from MongoDB
-    const latestSmap = await SmapObservation.findOne({
-      districtCode,
-      datasetKey: SMAP.datasetKey,
-      retrievalQualityFlag: { $in: [0, 8] },
-      isRecommendedQuality: true,
-      qualityClassification: "recommended",
-      soilMoisture: { $type: "number", $gte: SMAP.minValid, $lte: SMAP.maxValid },
-    })
-      .sort({ dateLabel: -1 })
-      .lean();
+    const latestSmap = await findLatestRecommendedSmapObservation(SmapObservation, districtCode);
 
     // Only rank-0, in-range MODIS data is eligible for the primary observation.
     const latestModis = await findLatestGoodModisObservation(ModisObservation, districtCode);

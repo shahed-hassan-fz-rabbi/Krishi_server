@@ -17,15 +17,36 @@ import { ModisObservation } from "../models/modisobservation.model.js";
 import { GpmObservation } from "../models/gpmobservation.model.js";
 import { snapshotService } from "./snapshot.service.js";
 import { generateFarmLifecycleTimeline } from "./croplifecycle.service.js";
-import { DISTRICTS } from "../config/climate.config.js";
+import { DISTRICTS, POWER } from "../config/climate.config.js";
 import { GPM } from "../config/gpm.config.js";
-import { summarizeGpmLocalDay } from "./nasa/gpm.validation.js";
+import { gpmFinalDistrictFilter, summarizeGpmLocalDay } from "./nasa/gpm.validation.js";
+import { latestRecommendedSmapSnapshot, isRecommendedSmapObservation } from "./nasa/smap.quality.js";
+import { latestGoodModisSnapshot, isGoodModisObservation } from "./nasa/modis.quality.js";
 
 const VALID_DISTRICT_CODES = new Set(DISTRICTS.map((d) => d.code.toLowerCase()));
 
 // In-memory bounded cache for composed environmental intelligence
 const envCache = new Map();
 const MAX_CACHE_SIZE = 50;
+
+function isValidPowerValue(row, { nonnegative = false } = {}) {
+  const date = typeof row?.dateLabel === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.dateLabel)
+    ? new Date(`${row.dateLabel}T00:00:00.000Z`)
+    : null;
+  const validDate = date && Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === row.dateLabel;
+  return Boolean(row && validDate && Number.isFinite(row.value) && row.value !== POWER.fillValue &&
+    (!nonnegative || row.value >= 0));
+}
+
+function validStatistic(value, { nonnegative = false } = {}) {
+  return Number.isFinite(value) && value !== POWER.fillValue && (!nonnegative || value >= 0);
+}
+
+function validSnapshotMonth(row, { nonnegative = false } = {}) {
+  return Number.isInteger(row?.year) && row.year >= 1900 && row.year <= 2200 &&
+    Number.isInteger(row?.month) && row.month >= 1 && row.month <= 12 &&
+    validStatistic(row?.total_mm, { nonnegative });
+}
 
 function getCacheKey(farmId, districtCode) {
   return `env::${farmId}::${districtCode}`;
@@ -181,9 +202,10 @@ export async function getFarmEnvironmentalIntelligence(farm) {
 async function resolveGpmContext(districtCode, isDbConnected) {
   if (!isDbConnected) return { status: "UNAVAILABLE", datasetKey: GPM.datasetKey, product: GPM.product, provider: GPM.provider, spatialResolution: GPM.spatialResolution, dailySummary: null, limitations: "No verified offline GPM snapshot is configured." };
   try {
-    const latest = await GpmObservation.findOne({ districtCode, runType: GPM.runType, productVersion: GPM.granuleVersion, sourceQuality: "valid" }).sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
+    const productFilter = { ...gpmFinalDistrictFilter(districtCode), sourceQuality: "valid" };
+    const latest = await GpmObservation.findOne(productFilter).sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
     if (!latest) return { status: "UNAVAILABLE", datasetKey: GPM.datasetKey, product: GPM.product, provider: GPM.provider, spatialResolution: GPM.spatialResolution, dailySummary: null, limitations: "No validated GPM observations are stored for this district." };
-    const dayDocs = await GpmObservation.find({ districtCode, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+    const dayDocs = await GpmObservation.find({ ...gpmFinalDistrictFilter(districtCode), dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
     const dailySummary = summarizeGpmLocalDay(districtCode, latest.dateLabel, dayDocs);
     return {
       status: "AVAILABLE",
@@ -226,16 +248,16 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
         NasaObservation.findOne({ districtCode, parameter: "ALLSKY_SFC_SW_DWN", quality: "ok" }).sort({ dateLabel: -1 }).lean(),
       ]);
 
-      if (rainDoc) {
+      if (isValidPowerValue(rainDoc, { nonnegative: true }) && rainDoc.districtCode === districtCode) {
         latestRainfall = { value: rainDoc.value, unit: "mm/day", dateLabel: rainDoc.dateLabel, observationDate: rainDoc.dateLabel, ingestedAt: rainDoc.createdAt || null, quality: rainDoc.quality };
         isFromDb = true;
       }
-      if (tempDoc) {
+      if (isValidPowerValue(tempDoc) && tempDoc.districtCode === districtCode) {
         latestTemp = {
           t2m: tempDoc.value,
-          tmax: maxTempDoc?.value ?? null,
-          tmin: minTempDoc?.value ?? null,
-          diurnalRange: (maxTempDoc?.value !== undefined && minTempDoc?.value !== undefined)
+          tmax: isValidPowerValue(maxTempDoc) && maxTempDoc.districtCode === districtCode ? maxTempDoc.value : null,
+          tmin: isValidPowerValue(minTempDoc) && minTempDoc.districtCode === districtCode ? minTempDoc.value : null,
+          diurnalRange: (isValidPowerValue(maxTempDoc) && maxTempDoc.districtCode === districtCode && isValidPowerValue(minTempDoc) && minTempDoc.districtCode === districtCode)
             ? Number((maxTempDoc.value - minTempDoc.value).toFixed(2))
             : null,
           unit: "°C",
@@ -243,12 +265,15 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
           observationDate: tempDoc.dateLabel,
           ingestedAt: tempDoc.createdAt || null,
         };
+        isFromDb = true;
       }
-      if (rhDoc) {
+      if (isValidPowerValue(rhDoc) && rhDoc.districtCode === districtCode) {
         latestRh = { value: rhDoc.value, unit: "%", dateLabel: rhDoc.dateLabel, observationDate: rhDoc.dateLabel, ingestedAt: rhDoc.createdAt || null };
+        isFromDb = true;
       }
-      if (solarDoc) {
+      if (isValidPowerValue(solarDoc, { nonnegative: true }) && solarDoc.districtCode === districtCode) {
         latestSolar = { value: solarDoc.value, unit: "MJ/m²/day", dateLabel: solarDoc.dateLabel, observationDate: solarDoc.dateLabel, ingestedAt: solarDoc.createdAt || null };
+        isFromDb = true;
       }
 
       // Fetch last 14 days of rainfall for trend chart
@@ -261,7 +286,7 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
         .limit(14)
         .lean();
 
-      recentRainfallTrend = recentDocs.reverse().map((d) => ({
+      recentRainfallTrend = recentDocs.filter((d) => d.districtCode === districtCode && isValidPowerValue(d, { nonnegative: true })).reverse().map((d) => ({
         dateLabel: d.dateLabel,
         rainfallMm: d.value,
       }));
@@ -288,36 +313,48 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
       monthlyNormals.push({
         month: m,
         monthNameEn: new Date(2024, m - 1, 1).toLocaleString("en", { month: "short" }),
-        rainfallMeanMm: rainStat ? Number(rainStat.mean.toFixed(1)) : null,
-        rainfallMedianMm: rainStat ? Number(rainStat.median.toFixed(1)) : null,
-        temperatureMeanC: tempStat ? Number(tempStat.mean.toFixed(1)) : null,
-        relativeHumidityMeanPercent: rhStat ? Number(rhStat.mean.toFixed(1)) : null,
-        solarRadiationMeanMj: solStat ? Number(solStat.mean.toFixed(1)) : null,
+        rainfallMeanMm: validStatistic(rainStat?.mean, { nonnegative: true }) ? Number(rainStat.mean.toFixed(1)) : null,
+        rainfallMedianMm: validStatistic(rainStat?.median, { nonnegative: true }) ? Number(rainStat.median.toFixed(1)) : null,
+        temperatureMeanC: validStatistic(tempStat?.mean) ? Number(tempStat.mean.toFixed(1)) : null,
+        relativeHumidityMeanPercent: validStatistic(rhStat?.mean) && rhStat.mean >= 0 && rhStat.mean <= 100 ? Number(rhStat.mean.toFixed(1)) : null,
+        solarRadiationMeanMj: validStatistic(solStat?.mean, { nonnegative: true }) ? Number(solStat.mean.toFixed(1)) : null,
       });
     }
 
     // If live DB was offline, extract latest from snapshot series
-    if (!latestRainfall && snapData.rainfall?.monthly_series?.length > 0) {
-      const lastMonth = snapData.rainfall.monthly_series[snapData.rainfall.monthly_series.length - 1];
+    const snapshotRainfallSeries = Array.isArray(snapData.rainfall?.monthly_series)
+      ? snapData.rainfall.monthly_series.filter((row) => validSnapshotMonth(row, { nonnegative: true }))
+      : [];
+    if (!latestRainfall && snapshotRainfallSeries.length > 0) {
+      const lastMonth = snapshotRainfallSeries[snapshotRainfallSeries.length - 1];
       latestRainfall = {
         value: lastMonth.total_mm,
         unit: "mm/month",
         dateLabel: `${lastMonth.year}-${String(lastMonth.month).padStart(2, "0")}`,
+        provenance: "SNAPSHOT",
       };
     }
     if (!latestTemp && snapData.temperature?.monthly_series?.length > 0) {
-      const lastTempMonth = snapData.temperature.monthly_series[snapData.temperature.monthly_series.length - 1];
+      const validTemperatureMonths = snapData.temperature.monthly_series.filter((row) =>
+        Number.isInteger(row?.year) && row.year >= 1900 && row.year <= 2200 &&
+        Number.isInteger(row?.month) && row.month >= 1 && row.month <= 12 && validStatistic(row?.mean));
+      const lastTempMonth = validTemperatureMonths[validTemperatureMonths.length - 1];
+      if (lastTempMonth) {
       latestTemp = {
         t2m: lastTempMonth.mean,
         unit: "°C",
         dateLabel: `${lastTempMonth.year}-${String(lastTempMonth.month).padStart(2, "0")}`,
+        provenance: "SNAPSHOT",
       };
+      }
     }
   }
 
   return {
     provenance: isFromDb ? "HISTORICAL" : (snapshot ? "SNAPSHOT" : "UNAVAILABLE"),
-    observationPeriod: "2001-01-01 to 2025-12-31 (25 Annual Cycles)",
+    observationPeriod: snapshot?.snapshotMetadata?.sourceObservationDateRange
+      ? `${snapshot.snapshotMetadata.sourceObservationDateRange.start} to ${snapshot.snapshotMetadata.sourceObservationDateRange.end}`
+      : null,
     timeStandard: "LST",
     spatialGrid: "0.5° × 0.625° GMAO MERRA-2 Gridded Point",
     latestObservations: {
@@ -330,13 +367,13 @@ async function resolvePowerClimateContext(districtCode, isDbConnected) {
     monthlyNormals,
     annualSummary: snapData
       ? {
-          annualRainfallMeanMm: snapData.rainfall?.annual_historical?.mean
+          annualRainfallMeanMm: validStatistic(snapData.rainfall?.annual_historical?.mean, { nonnegative: true })
             ? Number(snapData.rainfall.annual_historical.mean.toFixed(1))
             : null,
-          annualTemperatureMeanC: snapData.temperature?.annual_historical?.mean
+          annualTemperatureMeanC: validStatistic(snapData.temperature?.annual_historical?.mean)
             ? Number(snapData.temperature.annual_historical.mean.toFixed(1))
             : null,
-          annualRhMeanPercent: snapData.rh2m?.annual_historical?.mean
+          annualRhMeanPercent: validStatistic(snapData.rh2m?.annual_historical?.mean) && snapData.rh2m.annual_historical.mean >= 0 && snapData.rh2m.annual_historical.mean <= 100
             ? Number(snapData.rh2m.annual_historical.mean.toFixed(1))
             : null,
         }
@@ -351,24 +388,17 @@ async function resolveSmapContext(districtCode, isDbConnected) {
   let latest = null;
   let history = [];
   let isFromDb = false;
+  let invalidStoredCount = 0;
 
   if (isDbConnected) {
     try {
-      const docs = await SmapObservation.find({ districtCode })
-        .sort({ dateLabel: -1 })
-        .limit(6)
-        .lean();
-
-      if (docs.length > 0) {
-        latest = docs[0];
-        history = docs.map((d) => ({
-          dateLabel: d.dateLabel,
-          orbit: d.orbit,
-          soilMoisture: d.soilMoisture,
-          qualityClassification: d.qualityClassification,
-        }));
-        isFromDb = true;
-      }
+      const docs = await SmapObservation.find({ districtCode }).sort({ dateLabel: -1 }).lean();
+      invalidStoredCount = docs.filter((row) => !isRecommendedSmapObservation(row, districtCode)).length;
+      latest = docs.find((row) => isRecommendedSmapObservation(row, districtCode)) || null;
+      history = docs.filter((row) => isRecommendedSmapObservation(row, districtCode)).slice(0, 6).map((d) => ({
+        dateLabel: d.dateLabel, orbit: d.orbit, soilMoisture: d.soilMoisture, qualityClassification: d.qualityClassification,
+      }));
+      isFromDb = docs.length > 0;
     } catch {
       isFromDb = false;
     }
@@ -376,32 +406,33 @@ async function resolveSmapContext(districtCode, isDbConnected) {
 
   if (!latest) {
     const snap = snapshotService.getSmapSnapshot(districtCode);
-    if (snap?.latest) {
-      latest = snap.latest;
-      history = (snap.observations || []).slice(0, 6).map((d) => ({
-        dateLabel: d.dateLabel,
-        orbit: d.orbit,
-        soilMoisture: d.soilMoisture,
-        qualityClassification: d.qualityClassification,
-      }));
-    }
+    latest = latestRecommendedSmapSnapshot(snap, districtCode);
+    history = (snap?.observations || []).filter((row) => isRecommendedSmapObservation(row, districtCode)).slice(0, 6).map((d) => ({
+      dateLabel: d.dateLabel, orbit: d.orbit, soilMoisture: d.soilMoisture, qualityClassification: d.qualityClassification,
+    }));
   }
 
   if (!latest) {
     return {
       provenance: "UNAVAILABLE",
       status: "UNAVAILABLE",
-      message: "No NASA SMAP soil moisture observations available for this district.",
+      message: invalidStoredCount > 0
+        ? "Stored SMAP observations did not pass the recommended quality and value checks; measurements are withheld."
+        : "No quality-approved NASA SMAP observations are available for this district.",
+      quality: { isRecommended: false, rejectedStoredObservations: invalidStoredCount },
+      unit: "m³/m³",
+      measurementDepth: "Top 0-5 cm soil column only (not root-zone moisture)",
     };
   }
 
-  const isRecommended = latest.qualityClassification === "recommended" || latest.isRecommendedQuality === true;
+  const isRecommended = true;
 
   return {
     provenance: isFromDb ? "HISTORICAL" : "SNAPSHOT",
     datasetKey: "nasa:smap:spl3smp_e:v006",
     datasetName: "NASA SMAP Enhanced L3 Daily 9km Topsoil Moisture",
-    soilMoisture: latest.soilMoisture !== undefined ? Number(latest.soilMoisture.toFixed(4)) : null,
+    status: "AVAILABLE",
+    soilMoisture: Number(latest.soilMoisture.toFixed(4)),
     unit: "m³/m³",
     observationDate: latest.dateLabel,
     ingestedAt: latest.createdAt || null,
@@ -428,24 +459,17 @@ async function resolveModisContext(districtCode, isDbConnected) {
   let latest = null;
   let history = [];
   let isFromDb = false;
+  let rejectedStoredCount = 0;
 
   if (isDbConnected) {
     try {
-      const docs = await ModisObservation.find({ districtCode })
-        .sort({ dateLabel: -1 })
-        .limit(6)
-        .lean();
-
-      if (docs.length > 0) {
-        latest = docs[0];
-        history = docs.map((d) => ({
-          dateLabel: d.dateLabel,
-          ndvi: d.ndvi,
-          evi: d.evi,
-          qualityClassification: d.qualityClassification,
-        }));
-        isFromDb = true;
-      }
+      const docs = await ModisObservation.find({ districtCode }).sort({ dateLabel: -1 }).lean();
+      rejectedStoredCount = docs.filter((row) => !isGoodModisObservation(row, districtCode)).length;
+      latest = docs.find((row) => isGoodModisObservation(row, districtCode)) || null;
+      history = docs.filter((row) => isGoodModisObservation(row, districtCode)).slice(0, 6).map((d) => ({
+        dateLabel: d.dateLabel, ndvi: d.ndvi, evi: d.evi, qualityClassification: d.qualityClassification,
+      }));
+      isFromDb = docs.length > 0;
     } catch {
       isFromDb = false;
     }
@@ -453,33 +477,32 @@ async function resolveModisContext(districtCode, isDbConnected) {
 
   if (!latest) {
     const snap = snapshotService.getModisSnapshot(districtCode);
-    if (snap?.latest) {
-      latest = snap.latest;
-      history = (snap.observations || []).slice(0, 6).map((d) => ({
-        dateLabel: d.dateLabel,
-        ndvi: d.ndvi,
-        evi: d.evi,
-        qualityClassification: d.qualityClassification,
-      }));
-    }
+    latest = latestGoodModisSnapshot(snap, districtCode);
+    history = (snap?.observations || []).filter((row) => isGoodModisObservation(row, districtCode)).slice(0, 6).map((d) => ({
+      dateLabel: d.dateLabel, ndvi: d.ndvi, evi: d.evi, qualityClassification: d.qualityClassification,
+    }));
   }
 
   if (!latest) {
     return {
       provenance: "UNAVAILABLE",
       status: "UNAVAILABLE",
-      message: "No NASA MODIS vegetation observations available for this district.",
+      message: rejectedStoredCount > 0
+        ? "Stored MODIS observations did not pass the rank-0 reliability and value checks; measurements are withheld."
+        : "No quality-approved NASA MODIS observations are available for this district.",
+      quality: { isReliable: false, rejectedStoredObservations: rejectedStoredCount },
     };
   }
 
-  const isGood = latest.qualityClassification === "good_data" || latest.pixelReliability === 0;
+  const isGood = true;
 
   return {
     provenance: isFromDb ? "HISTORICAL" : "SNAPSHOT",
     datasetKey: "nasa:modis:mod13q1:v061",
     datasetName: "NASA Terra MODIS 250m 16-Day Vegetation Indices (MOD13Q1.061)",
-    ndvi: latest.ndvi !== undefined ? Number(latest.ndvi.toFixed(4)) : null,
-    evi: latest.evi !== undefined ? Number(latest.evi.toFixed(4)) : null,
+    status: "AVAILABLE",
+    ndvi: Number.isFinite(latest.ndvi) ? Number(latest.ndvi.toFixed(4)) : null,
+    evi: Number.isFinite(latest.evi) ? Number(latest.evi.toFixed(4)) : null,
     observationDate: latest.dateLabel,
     ingestedAt: latest.createdAt || null,
     compositePeriod: "16-Day Composite Window",
@@ -501,7 +524,7 @@ async function resolveModisContext(districtCode, isDbConnected) {
  * Generates deterministic English and Bengali environmental summary statements.
  * Strictly traceable to numbers in the payload — never calls generative models.
  */
-function generateDeterministicSummary({
+export function generateDeterministicSummary({
   districtCode,
   climateContext,
   smapContext,
@@ -521,9 +544,9 @@ function generateDeterministicSummary({
 
   // English Summary
   const enParts = [];
-  enParts.push(
-    `NASA POWER 25-year climate baseline for ${districtName} establishes an annual historical rainfall mean of ~${annualRain || "2100"} mm.`
-  );
+  enParts.push(Number.isFinite(annualRain)
+    ? `NASA POWER historical climate summary for ${districtName} reports an annual rainfall mean of ${annualRain} mm.`
+    : `NASA POWER historical rainfall summary is unavailable for ${districtName}; no rainfall value is substituted.`);
   if (rainLatest) {
     enParts.push(
       `Most recent archived daily rainfall record was ${rainLatest.value} ${rainLatest.unit} (recorded on ${rainLatest.dateLabel}).`
@@ -547,9 +570,9 @@ function generateDeterministicSummary({
 
   // Bengali Summary
   const bnParts = [];
-  bnParts.push(
-    `নাসা পাওয়ার (NASA POWER) ২৫ বছরের ঐতিহাসিক জলবায়ু উপাত্ত অনুযায়ী ${districtNameBn} অঞ্চলে বার্ষিক গড় বৃষ্টিপাত প্রায় ${annualRain || "২১০০"} মিলিমিটার।`
-  );
+  bnParts.push(Number.isFinite(annualRain)
+    ? `নাসা পাওয়ার (NASA POWER)-এর ঐতিহাসিক জলবায়ু সারাংশে ${districtNameBn} অঞ্চলে বার্ষিক গড় বৃষ্টিপাত ${annualRain} মিলিমিটার।`
+    : `নাসা পাওয়ার (NASA POWER)-এর ঐতিহাসিক বৃষ্টিপাতের সারাংশ ${districtNameBn} অঞ্চলের জন্য অনুপলব্ধ; কোনো বিকল্প মান ব্যবহার করা হয়নি।`);
   if (rainLatest) {
     bnParts.push(
       `সর্বশেষ সংরক্ষিত দৈনিক বৃষ্টিপাতের পরিমাণ ছিল ${rainLatest.value} ${rainLatest.unit} (তারিখ: ${rainLatest.dateLabel})।`
@@ -644,12 +667,16 @@ function synthesizeLifecycleEnvironment({
   if (monthNormal && monthNormal.temperatureMeanC !== null) {
     highlights.push({
       metric: "Thermal Context",
-      observation: `Historical monthly mean temperature is ${monthNormal.temperatureMeanC} °C with relative humidity averaging ${monthNormal.relativeHumidityMeanPercent || "75"}%.`,
+      observation: Number.isFinite(monthNormal.relativeHumidityMeanPercent)
+        ? `Historical monthly mean temperature is ${monthNormal.temperatureMeanC} °C with relative humidity averaging ${monthNormal.relativeHumidityMeanPercent}%.`
+        : `Historical monthly mean temperature is ${monthNormal.temperatureMeanC} °C; relative humidity is unavailable.`,
       caveat: "Extreme heat (>35°C) or cold (<15°C) may induce floret sterility depending on cultivar resilience.",
     });
     highlightsBn.push({
       metric: "তাপমাত্রা ও আর্দ্রতার প্রেক্ষাপট",
-      observation: `এই মাসে ঐতিহাসিক গড় তাপমাত্রা ${monthNormal.temperatureMeanC} °C এবং গড় আপেক্ষিক আর্দ্রতা ${monthNormal.relativeHumidityMeanPercent || "৭৫"}%।`,
+      observation: Number.isFinite(monthNormal.relativeHumidityMeanPercent)
+        ? `এই মাসে ঐতিহাসিক গড় তাপমাত্রা ${monthNormal.temperatureMeanC} °C এবং গড় আপেক্ষিক আর্দ্রতা ${monthNormal.relativeHumidityMeanPercent}%।`
+        : `এই মাসে ঐতিহাসিক গড় তাপমাত্রা ${monthNormal.temperatureMeanC} °C; আপেক্ষিক আর্দ্রতার তথ্য অনুপলব্ধ।`,
       caveat: "ফুল ও শীষ আসার সময় অতিরিক্ত গরম বা তীব্র ঠান্ডা ধানের পরাগায়নে প্রভাব ফেলতে পারে।",
     });
   }

@@ -114,10 +114,10 @@ export const assistantTools = [
         },
         district: {
           type: "STRING",
-          description: "Target district code ('cumilla', 'chattogram'). Defaults to 'cumilla'.",
+          description: "Required target district code ('cumilla' or 'chattogram').",
         },
       },
-      required: ["transition"],
+      required: ["transition", "district"],
     },
   },
   {
@@ -234,13 +234,13 @@ export const assistantTools = [
   {
     name: "getLocationWeatherForecast",
     description:
-      "Retrieve live short-range (1-7 days) and extended (8-16 days) weather forecast for a location (division, district, or farm) in Bangladesh, including daily rainfall, max/min temperature, precipitation probability, wind speed and gusts, and WMO conditions.",
+      "Retrieve live short-range (1-7 days) and extended (8-16 days) weather forecast for a supported district (Cumilla or Chattogram) or an owned farm in Bangladesh, including daily rainfall, max/min temperature, precipitation probability, wind speed and gusts, and WMO conditions.",
     parameters: {
       type: "OBJECT",
       properties: {
         location: {
           type: "STRING",
-          description: "Target division or district name (e.g. 'Dhaka', 'Chattogram', 'Sylhet', 'Rajshahi', 'Khulna', 'Barishal', 'Rangpur', 'Mymensingh', 'Cumilla').",
+          description: "Supported district name: 'Cumilla' or 'Chattogram'.",
         },
         farmId: {
           type: "STRING",
@@ -258,7 +258,7 @@ export const assistantTools = [
       properties: {
         location: {
           type: "STRING",
-          description: "Target division or district name.",
+          description: "Supported district name: 'Cumilla' or 'Chattogram'.",
         },
         crop: {
           type: "STRING",
@@ -280,7 +280,7 @@ export const assistantTools = [
       properties: {
         location: {
           type: "STRING",
-          description: "Target location name.",
+          description: "Supported district name: 'Cumilla' or 'Chattogram'.",
         },
         crop: {
           type: "STRING",
@@ -303,7 +303,7 @@ export const assistantTools = [
       properties: {
         location: {
           type: "STRING",
-          description: "Target division or district name.",
+          description: "Supported district name: 'Cumilla' or 'Chattogram'.",
         },
       },
     },
@@ -317,7 +317,7 @@ export const assistantTools = [
       properties: {
         location: {
           type: "STRING",
-          description: "Target division or district name.",
+          description: "Supported district name: 'Cumilla' or 'Chattogram'.",
         },
         crop: {
           type: "STRING",

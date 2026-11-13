@@ -19,7 +19,9 @@ import { GPM } from "../../config/gpm.config.js";
 import { analyzeDistrictClimate, analyzeHandoff } from "../climate/analysis.service.js";
 import { snapshotService } from "../snapshot.service.js";
 import mongoose from "mongoose";
-import { summarizeGpmLocalDay } from "../nasa/gpm.validation.js";
+import { gpmFinalDistrictFilter, summarizeGpmLocalDay } from "../nasa/gpm.validation.js";
+import { findLatestRecommendedSmapObservation, latestRecommendedSmapSnapshot } from "../nasa/smap.quality.js";
+import { findLatestGoodModisObservation, latestGoodModisSnapshot } from "../nasa/modis.quality.js";
 import { Farm } from "../../models/farm.model.js";
 import { FarmActivity } from "../../models/farmactivity.model.js";
 import { ownedFarmFilter } from "../../security/farm-ownership.js";
@@ -107,10 +109,20 @@ function resolveCropCode(input) {
 }
 
 function normalizeDistrict(code) {
-  if (!code) return "cumilla";
+  if (typeof code !== "string" || !code.trim()) return null;
   const normalized = code.trim().toLowerCase();
   if (VALID_DISTRICT_CODES.has(normalized)) return normalized;
   return null;
+}
+
+function requireWeatherDistrict(code) {
+  const districtCode = normalizeDistrict(code);
+  return districtCode || {
+    error: "SUPPORTED_DISTRICT_REQUIRED",
+    status: "UNAVAILABLE",
+    supportedDistricts: [...VALID_DISTRICT_CODES],
+    limitation: "Weather guidance is currently scoped to Cumilla and Chattogram only.",
+  };
 }
 
 export const toolExecutors = {
@@ -119,9 +131,9 @@ export const toolExecutors = {
     const validDistrict = normalizeDistrict(district);
     if (!validDistrict) return { error: `District '${district}' is not supported.`, supportedDistricts: [...VALID_DISTRICT_CODES] };
     if (!snapshotService.isDbConnected()) return { status: "UNAVAILABLE", district: validDistrict, source: GPM.provider, limitation: "No verified offline GPM snapshot is configured." };
-    const latest = await GpmObservation.findOne({ districtCode: validDistrict, runType: GPM.runType, productVersion: GPM.granuleVersion, sourceQuality: "valid" }).sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
+    const latest = await GpmObservation.findOne({ ...gpmFinalDistrictFilter(validDistrict), sourceQuality: "valid" }).sort({ dateLabel: -1, intervalStartUtc: -1 }).lean();
     if (!latest) return { status: "UNAVAILABLE", district: validDistrict, source: GPM.provider, limitation: "No validated GPM observations are stored for this district." };
-    const dayDocs = await GpmObservation.find({ districtCode: validDistrict, dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
+    const dayDocs = await GpmObservation.find({ ...gpmFinalDistrictFilter(validDistrict), dateLabel: latest.dateLabel }).sort({ intervalStartUtc: 1 }).lean();
     const dailySummary = summarizeGpmLocalDay(validDistrict, latest.dateLabel, dayDocs);
     return {
       status: "AVAILABLE", district: validDistrict, observationDate: latest.dateLabel,
@@ -293,20 +305,19 @@ export const toolExecutors = {
       dataset: "NASA POWER Daily Point (2001-2025)",
       provenance: isSnapshot ? "SNAPSHOT" : "HISTORICAL_DATABASE",
       annualHistorical: {
-        meanAnnualTotalMm: annualStats.mean != null ? Number(annualStats.mean.toFixed(2)) : (analysisData?.mean != null ? Number(analysisData.mean.toFixed(2)) : 2454.31),
-        medianAnnualTotalMm: annualStats.median != null ? Number(annualStats.median.toFixed(2)) : (analysisData?.median != null ? Number(analysisData.median.toFixed(2)) : 2162.87),
-        minAnnualTotalMm: annualStats.min != null ? Number(annualStats.min.toFixed(2)) : (analysisData?.min != null ? Number(analysisData.min.toFixed(2)) : 1660.63),
-        maxAnnualTotalMm: annualStats.max != null ? Number(annualStats.max.toFixed(2)) : (analysisData?.max != null ? Number(analysisData.max.toFixed(2)) : 5294.55),
+        meanAnnualTotalMm: Number.isFinite(annualStats.mean) ? Number(annualStats.mean.toFixed(2)) : (Number.isFinite(analysisData?.mean) ? Number(analysisData.mean.toFixed(2)) : null),
+        medianAnnualTotalMm: Number.isFinite(annualStats.median) ? Number(annualStats.median.toFixed(2)) : (Number.isFinite(analysisData?.median) ? Number(analysisData.median.toFixed(2)) : null),
+        minAnnualTotalMm: Number.isFinite(annualStats.min) ? Number(annualStats.min.toFixed(2)) : (Number.isFinite(analysisData?.min) ? Number(analysisData.min.toFixed(2)) : null),
+        maxAnnualTotalMm: Number.isFinite(annualStats.max) ? Number(annualStats.max.toFixed(2)) : (Number.isFinite(analysisData?.max) ? Number(analysisData.max.toFixed(2)) : null),
       },
       recentAnnualSeries: (analysisData?.annual_series || []).slice(-5).map((s) => ({
         year: s.year,
         totalMm: s.total_mm,
         isComplete: s.is_complete,
       })),
-      summary:
-        validDistrict === "cumilla"
-          ? "Historical annual rainfall in Cumilla averages ~2,454 mm (median ~2,163 mm), with heavy monsoon concentration from June to September."
-          : "Historical annual rainfall in Chattogram averages ~2,800 mm, with very high coastal monsoon intensity.",
+      summary: Number.isFinite(annualStats.mean ?? analysisData?.mean)
+        ? `NASA POWER historical annual rainfall mean for ${validDistrict} is ${Number(annualStats.mean ?? analysisData.mean).toFixed(2)} mm; this is a historical statistic, not a forecast.`
+        : `NASA POWER historical annual rainfall summary for ${validDistrict} is unavailable; no value is substituted.`,
     };
   },
 
@@ -327,9 +338,7 @@ export const toolExecutors = {
 
     if (snapshotService.isDbConnected()) {
       try {
-        latestDoc = await SmapObservation.findOne({ districtCode: validDistrict })
-          .sort({ dateLabel: -1, orbit: -1 })
-          .lean();
+        latestDoc = await findLatestRecommendedSmapObservation(SmapObservation, validDistrict);
       } catch {
         latestDoc = null;
       }
@@ -337,12 +346,14 @@ export const toolExecutors = {
 
     if (!latestDoc) {
       const snapshot = snapshotService.getSmapSnapshot(validDistrict);
-      if (snapshot && snapshot.latest) {
-        latestDoc = snapshot.latest;
+      if (snapshot) {
+        latestDoc = latestRecommendedSmapSnapshot(snapshot, validDistrict);
         isSnapshot = true;
-      } else {
+      }
+      if (!latestDoc) {
         return {
-          error: `No NASA SMAP soil moisture observations found in database for district '${validDistrict}'.`,
+          status: "UNAVAILABLE",
+          error: `No quality-approved NASA SMAP soil moisture observation is available for district '${validDistrict}'.`,
           district: validDistrict,
         };
       }
@@ -387,9 +398,7 @@ export const toolExecutors = {
 
     if (snapshotService.isDbConnected()) {
       try {
-        latestDoc = await ModisObservation.findOne({ districtCode: validDistrict })
-          .sort({ dateLabel: -1 })
-          .lean();
+      latestDoc = await findLatestGoodModisObservation(ModisObservation, validDistrict);
       } catch {
         latestDoc = null;
       }
@@ -397,12 +406,14 @@ export const toolExecutors = {
 
     if (!latestDoc) {
       const snapshot = snapshotService.getModisSnapshot(validDistrict);
-      if (snapshot && snapshot.latest) {
-        latestDoc = snapshot.latest;
+      if (snapshot) {
+        latestDoc = latestGoodModisSnapshot(snapshot, validDistrict);
         isSnapshot = true;
-      } else {
+      }
+      if (!latestDoc) {
         return {
-          error: `No NASA MODIS vegetation observations found in database for district '${validDistrict}'.`,
+          status: "UNAVAILABLE",
+          error: `No rank-0 quality-approved NASA MODIS observation is available for district '${validDistrict}'.`,
           district: validDistrict,
         };
       }
@@ -430,7 +441,7 @@ export const toolExecutors = {
   /**
    * 5. Official crop calendar advisory from BAMIS / DAE / BRRI / BARI.
    */
-  async getCropCalendarAdvisory({ crop, district = "cumilla", stage }) {
+  async getCropCalendarAdvisory({ crop, district, stage }) {
     const validCrop = resolveCropCode(crop);
     if (!validCrop) {
       return {
@@ -439,7 +450,8 @@ export const toolExecutors = {
       };
     }
 
-    const validDistrict = normalizeDistrict(district) || "cumilla";
+    const validDistrict = normalizeDistrict(district);
+    if (!validDistrict) return { error: `District '${district}' is not supported. Supported: ${[...VALID_DISTRICT_CODES].join(", ")}.`, supportedDistricts: [...VALID_DISTRICT_CODES] };
     const calendars = getCropCalendarsData();
 
     const cropEntry = calendars.crops.find((c) => c.cropId === validCrop);
@@ -447,7 +459,7 @@ export const toolExecutors = {
       return { error: `No calendar data found for crop '${validCrop}'.` };
     }
 
-    const districtCal = cropEntry.districts[validDistrict] || cropEntry.districts["cumilla"];
+    const districtCal = cropEntry.districts[validDistrict];
     const allStages = districtCal?.stages || [];
 
     let filteredStages = allStages;
@@ -498,7 +510,7 @@ export const toolExecutors = {
   /**
    * 6. Crop-transition handoff planner.
    */
-  async getHandoffPlan({ transition, district = "cumilla" }) {
+  async getHandoffPlan({ transition, district }) {
     const validDistrict = normalizeDistrict(district);
     if (!validDistrict) {
       return {
@@ -721,7 +733,7 @@ export const toolExecutors = {
     if (access.error) return access;
     const { farm } = access;
 
-    const district = farm.location?.districtCode || "cumilla";
+    const district = farm.location?.districtCode || null;
     const [soilMoisture, vegetation, climate] = await Promise.all([
       toolExecutors.getSoilMoistureLatest({ district }),
       toolExecutors.getVegetationLatest({ district }),
@@ -835,14 +847,17 @@ export const toolExecutors = {
    * 14. Live weather forecast (1-7d short-range & 8-16d extended).
    */
   async getLocationWeatherForecast({ location, farmId, userId }) {
-    let targetLocation = location || "Chattogram";
+    let targetLocation = location || null;
     let farmContext = null;
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || null;
       farmContext = getWeatherFarmContext(access.farm, null);
     }
+
+    targetLocation = requireWeatherDistrict(targetLocation);
+    if (typeof targetLocation !== "string") return targetLocation;
 
     const forecast = await getLiveForecast({ locationIdentifier: targetLocation });
     return {
@@ -872,17 +887,20 @@ export const toolExecutors = {
    * 15. Active weather risk alerts & official BMD warnings.
    */
   async getActiveWeatherAlerts({ location, crop, farmId, userId }) {
-    let targetLocation = location || "Chattogram";
+    let targetLocation = location || null;
     let targetCrop = crop || null;
     let farmContext = null;
 
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || null;
       farmContext = getWeatherFarmContext(access.farm, targetCrop);
       targetCrop = farmContext.cropCode;
     }
+
+    targetLocation = requireWeatherDistrict(targetLocation);
+    if (typeof targetLocation !== "string") return targetLocation;
 
     const [forecast, warningResult] = await Promise.all([
       getLiveForecast({ locationIdentifier: targetLocation }),
@@ -928,16 +946,18 @@ export const toolExecutors = {
    * 16. Crop-specific hazard evaluation against growth stages.
    */
   async getAgriculturalRiskAssessment({ location, crop, stage, farmId, userId }) {
-    let targetLocation = location || "Chattogram";
+    let targetLocation = location || null;
     let farmContext = null;
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || null;
       farmContext = getWeatherFarmContext(access.farm, crop);
       crop = farmContext.cropCode;
       stage = farmContext.cropStage?.stageCode || null;
     }
+    targetLocation = requireWeatherDistrict(targetLocation);
+    if (typeof targetLocation !== "string") return targetLocation;
     const [forecast, warningResult] = await Promise.all([
       getLiveForecast({ locationIdentifier: targetLocation }),
       getActiveOfficialWarningsResult({
@@ -971,14 +991,16 @@ export const toolExecutors = {
    * 17. Sub-seasonal weekly tendencies (Weeks 1 to 6).
    */
   async getWeeklyWeatherOutlook({ location, farmId, userId }) {
-    let targetLocation = location || "Chattogram";
+    let targetLocation = location || null;
     let farmContext = null;
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || null;
       farmContext = getWeatherFarmContext(access.farm, null);
     }
+    targetLocation = requireWeatherDistrict(targetLocation);
+    if (typeof targetLocation !== "string") return targetLocation;
     const seasonal = await getSeasonalOutlook({ locationIdentifier: targetLocation });
     return {
       location: seasonal.location,
@@ -1013,15 +1035,17 @@ export const toolExecutors = {
    * 18. Seasonal monthly climate outlook (Months 1 to 3 ahead).
    */
   async getSeasonalCropOutlook({ location, crop, farmId, userId }) {
-    let targetLocation = location || "Chattogram";
+    let targetLocation = location || null;
     let farmContext = null;
     if (farmId) {
       const access = await findOwnedFarmForTool(farmId, userId);
       if (access.error) return access;
-      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || targetLocation;
+      targetLocation = access.farm.location?.districtCode || access.farm.location?.district || null;
       farmContext = getWeatherFarmContext(access.farm, crop);
       crop = farmContext.cropCode;
     }
+    targetLocation = requireWeatherDistrict(targetLocation);
+    if (typeof targetLocation !== "string") return targetLocation;
     const seasonal = await getSeasonalOutlook({ locationIdentifier: targetLocation });
     return {
       location: seasonal.location,

@@ -57,7 +57,7 @@ export async function getCropRecommendations(req, res, next) {
           drainage: farm.soil?.drainage || "unknown",
         },
         water: {
-          irrigationAvailability: farm.water?.irrigationAvailability || "unavailable",
+          irrigationAvailability: farm.water?.irrigationAvailability || "unknown",
           waterSource: farm.water?.waterSource || "",
         },
       };
@@ -74,13 +74,13 @@ export async function getCropRecommendations(req, res, next) {
     const {
       area = null,
       unit = "decimal",
-      landType = "medium_high",
+      landType = "unknown",
       soilType = "unknown",
-      drainage = "good",
+      drainage = "unknown",
     } = profile.land || {};
 
     const {
-      irrigationAvailability = "available",
+      irrigationAvailability = "unknown",
       waterSource = "",
     } = profile.water || {};
 

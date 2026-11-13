@@ -494,7 +494,7 @@ export async function getTemperature(req, res, next) {
  */
 export async function getHandoffPlan(req, res, next) {
   try {
-    const district = (req.query.district || "cumilla").trim().toLowerCase();
+    const district = (req.query.district || "").trim().toLowerCase();
     if (!VALID_DISTRICT_CODES.has(district)) {
       return errorResponse(
         res,
@@ -574,7 +574,7 @@ export async function getHandoffPlan(req, res, next) {
     return successResponse(res, 200, analysis.data, meta);
   } catch (error) {
     try {
-      const district = (req.query.district || "cumilla").trim().toLowerCase();
+      const district = (req.query.district || "").trim().toLowerCase();
       const transition = (req.query.transition || "aman-mustard").trim().toLowerCase();
       const snapshot = snapshotService.getHandoffSnapshot(district, transition);
       if (snapshot && snapshot.data) {

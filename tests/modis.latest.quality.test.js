@@ -6,6 +6,7 @@ import { ModisObservation } from "../src/models/modisobservation.model.js";
 import { snapshotService } from "../src/services/snapshot.service.js";
 import { getCropCalendarAlignment } from "../src/controllers/cropcalendar.controller.js";
 import { SmapObservation } from "../src/models/smapobservation.model.js";
+import { SMAP } from "../src/config/smap.config.js";
 
 function recorder() {
   return {
@@ -163,9 +164,18 @@ test("crop-calendar alignment returns district-matched rank-0 MODIS and recommen
   };
   const smapFilters = [];
   const modisFilters = [];
-  t.mock.method(SmapObservation, "findOne", (filter) => {
+  t.mock.method(SmapObservation, "find", (filter) => {
     smapFilters.push(filter);
-    return queryResult({ districtCode: filter.districtCode, soilMoisture: 0.31, unit: "m^3/m^3", dateLabel: "2024-01-08", retrievalQualityFlag: 8, isRecommendedQuality: true, qualityClassification: "recommended" });
+    return queryRows([{
+      districtCode: filter.districtCode,
+      datasetKey: SMAP.datasetKey,
+      soilMoisture: 0.31,
+      unit: "m^3/m^3",
+      dateLabel: "2024-01-08",
+      retrievalQualityFlag: 8,
+      isRecommendedQuality: true,
+      qualityClassification: "recommended",
+    }]);
   });
   t.mock.method(ModisObservation, "find", (filter) => {
     modisFilters.push(filter);
@@ -195,7 +205,7 @@ test("crop-calendar alignment returns district-matched rank-0 MODIS and recommen
 });
 
 test("crop-calendar alignment withholds rank-1 NDVI/EVI and exposes only its marginal date and quality", async (t) => {
-  t.mock.method(SmapObservation, "findOne", () => queryResult(null));
+  t.mock.method(SmapObservation, "find", () => queryRows([]));
   t.mock.method(ModisObservation, "find", (filter) => {
     if (filter.pixelReliability === 0) return queryRows([]);
     assert.equal(filter.districtCode, "cumilla");
@@ -218,7 +228,7 @@ test("crop-calendar alignment withholds rank-1 NDVI/EVI and exposes only its mar
 });
 
 test("crop-calendar alignment does not treat missing MODIS quality metadata as good or marginal", async (t) => {
-  t.mock.method(SmapObservation, "findOne", () => queryResult(null));
+  t.mock.method(SmapObservation, "find", () => queryRows([]));
   t.mock.method(ModisObservation, "find", (filter) => {
     if (filter.pixelReliability === 0) return queryRows([]);
     assert.equal(filter.pixelReliability, 1);

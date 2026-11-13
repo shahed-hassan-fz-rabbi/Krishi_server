@@ -90,11 +90,10 @@ export async function resolveLocationContext(req) {
   const locationIdentifier =
     Number.isFinite(parsedLat) && Number.isFinite(parsedLon)
       ? { latitude: parsedLat, longitude: parsedLon }
-      : location || district || division || "chattogram";
+      : location || district || division || null;
 
-  if (typeof locationIdentifier === "string" &&
-      resolveLocationCoordinates(locationIdentifier).type === "default_fallback") {
-    const error = new Error("Unknown weather location");
+  if (!resolveLocationCoordinates(locationIdentifier)) {
+    const error = new Error(locationIdentifier ? "Unknown weather location" : "A supported district, division, or valid coordinate pair is required");
     error.statusCode = 400;
     throw error;
   }

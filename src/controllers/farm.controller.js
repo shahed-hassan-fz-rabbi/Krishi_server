@@ -22,6 +22,30 @@ import { getFarmEnvironmentalIntelligence } from "../services/farmenvironment.se
 import { generateActivitiesForFarm } from "../services/farmactivity.service.js";
 import { ownedFarmFilter } from "../security/farm-ownership.js";
 import { FarmNotificationService } from "../services/farmnotification.service.js";
+import { findLatestRecommendedSmapObservation, latestRecommendedSmapSnapshot, isRecommendedSmapObservation } from "../services/nasa/smap.quality.js";
+import { findLatestGoodModisObservation, latestGoodModisSnapshot, isGoodModisObservation } from "../services/nasa/modis.quality.js";
+
+export function buildFarmEnvironmentalContext(districtCode, smapObservation, modisObservation) {
+  const smap = isRecommendedSmapObservation(smapObservation, districtCode) ? smapObservation : null;
+  const modis = isGoodModisObservation(modisObservation, districtCode) ? modisObservation : null;
+  return {
+    districtCode,
+    soilMoisture: smap ? {
+      value: smap.soilMoisture,
+      unit: smap.unit || "m³/m³",
+      date: smap.dateLabel,
+      quality: smap.qualityClassification,
+      source: "NASA SMAP (Top 0-5 cm soil proxy)",
+    } : null,
+    vegetationHealth: modis ? {
+      ndvi: modis.ndvi,
+      evi: modis.evi,
+      date: modis.dateLabel,
+      quality: modis.qualityClassification,
+      source: "NASA MODIS 250m Canopy Greenness",
+    } : null,
+  };
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,7 +106,7 @@ export async function createFarm(req, res, next) {
     const farmName = (req.body.farmName || req.body.name || "").trim();
     const lowerDistrictCode = location.districtCode.trim().toLowerCase();
     const districtObj = DISTRICTS.find((d) => d.code === lowerDistrictCode);
-    const districtName = districtObj ? districtObj.nameEn : "Cumilla";
+    const districtName = districtObj?.nameEn || null;
 
     const cropMeta = resolveCropInfo(crop.cropCode);
     const cropName = cropMeta ? cropMeta.cropNameEn : crop.cropName || crop.cropCode;
@@ -226,22 +250,18 @@ export async function getFarmById(req, res, next) {
 
     if (snapshotService.isDbConnected()) {
       try {
-        latestSmap = await SmapObservation.findOne({ districtCode: farm.location.districtCode })
-          .sort({ dateLabel: -1 })
-          .lean();
-        latestModis = await ModisObservation.findOne({ districtCode: farm.location.districtCode })
-          .sort({ dateLabel: -1 })
-          .lean();
+        latestSmap = await findLatestRecommendedSmapObservation(SmapObservation, farm.location.districtCode);
+        latestModis = await findLatestGoodModisObservation(ModisObservation, farm.location.districtCode);
       } catch {
         // Fallback to snapshot
       }
     }
 
     if (!latestSmap) {
-      latestSmap = snapshotService.getSmapSnapshot(farm.location.districtCode)?.latest || null;
+      latestSmap = latestRecommendedSmapSnapshot(snapshotService.getSmapSnapshot(farm.location.districtCode), farm.location.districtCode);
     }
     if (!latestModis) {
-      latestModis = snapshotService.getModisSnapshot(farm.location.districtCode)?.latest || null;
+      latestModis = latestGoodModisSnapshot(snapshotService.getModisSnapshot(farm.location.districtCode), farm.location.districtCode);
     }
 
     const enriched = {
@@ -260,27 +280,7 @@ export async function getFarmById(req, res, next) {
             stages: districtCal.stages,
           }
         : null,
-      environmentalContext: {
-        districtCode: farm.location.districtCode,
-        soilMoisture: latestSmap
-          ? {
-              value: latestSmap.soilMoisture,
-              unit: latestSmap.unit || "m³/m³",
-              date: latestSmap.dateLabel,
-              quality: latestSmap.qualityClassification || "recommended",
-              source: "NASA SMAP (Top 0-5 cm soil proxy)",
-            }
-          : null,
-        vegetationHealth: latestModis
-          ? {
-              ndvi: latestModis.ndvi,
-              evi: latestModis.evi,
-              date: latestModis.dateLabel,
-              quality: latestModis.qualityClassification || "good_data",
-              source: "NASA MODIS 250m Canopy Greenness",
-            }
-          : null,
-      },
+      environmentalContext: buildFarmEnvironmentalContext(farm.location.districtCode, latestSmap, latestModis),
     };
 
     return successResponse(res, 200, enriched);

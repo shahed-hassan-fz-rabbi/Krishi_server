@@ -11,7 +11,7 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_HISTORY_DAYS = 31;
 
 function validateRequest(req, { dateRequired = false, range = false } = {}) {
-  const district = String(req.query.district || "cumilla").trim().toLowerCase();
+  const district = String(req.query.district || "").trim().toLowerCase();
   if (!validDistricts.has(district)) return { error: [400, "INVALID_DISTRICT", "Unsupported district."] };
   const date = req.query.date;
   const from = req.query.from;

@@ -19,6 +19,25 @@ const __dirname = path.dirname(__filename);
 const SNAPSHOTS_DIR = path.resolve(__dirname, "../../data/snapshots");
 
 const memoryCache = new Map();
+const SUPPORTED_DISTRICTS = new Set(["cumilla", "chattogram"]);
+
+function normalizeSupportedDistrict(districtCode) {
+  if (typeof districtCode !== "string") return null;
+  const normalized = districtCode.trim().toLowerCase();
+  return SUPPORTED_DISTRICTS.has(normalized) ? normalized : null;
+}
+
+function isSnapshotMetadata(metadata, expectedDataset, districtCode = null) {
+  if (
+    !metadata ||
+    metadata.provenance !== "SNAPSHOT" ||
+    typeof metadata.generatedAt !== "string" ||
+    !Number.isFinite(Date.parse(metadata.generatedAt)) ||
+    typeof metadata.sourceDataset !== "string" ||
+    !metadata.sourceDataset.includes(expectedDataset)
+  ) return false;
+  return !districtCode || metadata.district?.toLowerCase() === districtCode;
+}
 
 function loadJson(filePath) {
   if (memoryCache.has(filePath)) {
@@ -57,18 +76,19 @@ export const snapshotService = {
    * Retrieve climate analysis snapshot for a district.
    */
   getClimateSnapshot(districtCode) {
-    if (!districtCode) return null;
-    const norm = districtCode.toLowerCase().trim();
+    const norm = normalizeSupportedDistrict(districtCode);
+    if (!norm) return null;
     const filePath = path.join(SNAPSHOTS_DIR, `${norm}_climate.json`);
-    return loadJson(filePath);
+    const snapshot = loadJson(filePath);
+    return isSnapshotMetadata(snapshot?.snapshotMetadata, "NASA POWER", norm) ? snapshot : null;
   },
 
   /**
    * Retrieve handoff analysis snapshot for a district & transition.
    */
   getHandoffSnapshot(districtCode, transition) {
-    if (!districtCode) return null;
-    const normDist = districtCode.toLowerCase().trim();
+    const normDist = normalizeSupportedDistrict(districtCode);
+    if (!normDist) return null;
     const normTrans = (transition || "aman-mustard").toLowerCase().trim();
     const filePath = path.join(SNAPSHOTS_DIR, `${normDist}_handoff.json`);
     const snapshot = loadJson(filePath);
@@ -87,11 +107,12 @@ export const snapshotService = {
    * Retrieve SMAP soil moisture snapshot observations for a district.
    */
   getSmapSnapshot(districtCode) {
+    const norm = normalizeSupportedDistrict(districtCode);
+    if (!norm) return null;
     const filePath = path.join(SNAPSHOTS_DIR, "smap_observations.json");
     const snapshot = loadJson(filePath);
-    if (!snapshot || !Array.isArray(snapshot.observations)) return null;
+    if (!isSnapshotMetadata(snapshot?.snapshotMetadata, "NASA SMAP") || !Array.isArray(snapshot.observations)) return null;
 
-    const norm = (districtCode || "cumilla").toLowerCase().trim();
     const filtered = snapshot.observations.filter((obs) => obs.districtCode === norm);
 
     if (filtered.length === 0) return null;
@@ -107,11 +128,12 @@ export const snapshotService = {
    * Retrieve MODIS vegetation snapshot observations for a district.
    */
   getModisSnapshot(districtCode) {
+    const norm = normalizeSupportedDistrict(districtCode);
+    if (!norm) return null;
     const filePath = path.join(SNAPSHOTS_DIR, "modis_observations.json");
     const snapshot = loadJson(filePath);
-    if (!snapshot || !Array.isArray(snapshot.observations)) return null;
+    if (!isSnapshotMetadata(snapshot?.snapshotMetadata, "NASA Terra MODIS") || !Array.isArray(snapshot.observations)) return null;
 
-    const norm = (districtCode || "cumilla").toLowerCase().trim();
     const filtered = snapshot.observations.filter((obs) => obs.districtCode === norm);
 
     if (filtered.length === 0) return null;

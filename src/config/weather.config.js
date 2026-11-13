@@ -161,16 +161,7 @@ export const WMO_WEATHER_CODES = {
  * Checks farm coordinates first, then district config, then division config.
  */
 export function resolveLocationCoordinates(identifier) {
-  if (!identifier) {
-    return {
-      latitude: 23.46186,
-      longitude: 91.18503,
-      locationName: "Cumilla",
-      locationNameBn: "কুমিল্লা",
-      type: "district_centroid",
-      isRepresentative: false,
-    };
-  }
+  if (!identifier) return null;
 
   // If object with lat/lng passed directly
   if (typeof identifier === "object" && Number.isFinite(identifier.latitude) && Number.isFinite(identifier.longitude)) {
@@ -199,28 +190,5 @@ export function resolveLocationCoordinates(identifier) {
     };
   }
 
-  // Check Division
-  const division = DIVISIONS.find((d) => d.code === code);
-  if (division) {
-    return {
-      latitude: division.latitude,
-      longitude: division.longitude,
-      locationName: division.nameEn,
-      locationNameBn: division.nameBn,
-      type: "division_centroid",
-      isRepresentative: true,
-      limitation: division.limitation,
-    };
-  }
-
-  // Fallback to Cumilla
-  const defaultDist = DISTRICTS[1] || DISTRICTS[0];
-  return {
-    latitude: defaultDist.latitude,
-    longitude: defaultDist.longitude,
-    locationName: defaultDist.nameEn,
-    locationNameBn: defaultDist.nameBn,
-    type: "default_fallback",
-    isRepresentative: false,
-  };
+  return null;
 }

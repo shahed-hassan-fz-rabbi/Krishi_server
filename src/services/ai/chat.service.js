@@ -54,9 +54,24 @@ function updateConversationHistory(conversationId, userText, assistantText) {
  * Deterministic local fallback generator when Gemini API is unavailable or unconfigured.
  * Strictly uses real data from toolExecutors with zero hallucination.
  */
-async function generateDeterministicFallback({ message, district = "cumilla", crop = null, farmId = null, userId = null }) {
+async function generateDeterministicFallback({ message, district, crop = null, farmId = null, userId = null }) {
   const normMessage = message.toLowerCase();
-  const validDistrict = VALID_DISTRICT_CODES.has(district?.toLowerCase()) ? district.toLowerCase() : "cumilla";
+  const validDistrict = VALID_DISTRICT_CODES.has(district?.toLowerCase()) ? district.toLowerCase() : null;
+  if (!validDistrict) {
+    const language = isBanglaMessage(message) ? "bn" : "en";
+    return {
+      answer: language === "bn"
+        ? "এই জেলার জন্য যাচাইকৃত তথ্য নেই। কুমিল্লা বা চট্টগ্রাম নির্বাচন করুন।"
+        : "Verified data is available only for Cumilla and Chattogram. Select a supported district to continue.",
+      sources: ["Krishi Mama Supported District Registry"],
+      dataDate: null,
+      dataQuality: "district_unsupported",
+      provenance: [],
+      limitations: ["No district data was requested or used."],
+      language,
+      modelUsed: "deterministic-grounded-engine",
+    };
+  }
   const executedTools = [];
   let answer = "";
   const sources = [];
@@ -976,7 +991,7 @@ export class AssistantChatService {
    */
   async handleChat({
     message,
-    district = "cumilla",
+    district,
     crop = null,
     farmId = null,
     userId = null,
@@ -994,14 +1009,17 @@ export class AssistantChatService {
       : getConversationHistory(effectiveConversationId);
 
     // Validate district against supported list
-    const lowerDistrict = (district || "cumilla").trim().toLowerCase();
-    if (district && !VALID_DISTRICT_CODES.has(lowerDistrict)) {
-      const unsupportedAnswer = `বর্তমানে কৃষি মামা সিস্টেমে কেবল 'কুমিল্লা' এবং 'চট্টগ্রাম' জেলার উপাত্ত যাচাইকৃত রয়েছে। '${district}' জেলার উপাত্ত ভবিষ্যতে যুক্ত করা হবে। অনুগ্রহ করে কুমিল্লা বা চট্টগ্রাম জেলা নির্বাচন করুন।`;
+    const lowerDistrict = typeof district === "string" ? district.trim().toLowerCase() : "";
+    if (!VALID_DISTRICT_CODES.has(lowerDistrict)) {
+      const language = isBanglaMessage(trimmedMessage) ? "bn" : "en";
+      const unsupportedAnswer = language === "bn"
+        ? `বর্তমানে কেবল কুমিল্লা ও চট্টগ্রাম জেলার উপাত্ত যাচাইকৃত। '${district || "নির্বাচিত নয়"}' জেলার জন্য তথ্য ব্যবহার করা হয়নি। অনুগ্রহ করে কুমিল্লা বা চট্টগ্রাম নির্বাচন করুন।`
+        : `Only Cumilla and Chattogram currently have validated district data. No data was used for '${district || "unspecified"}'. Select Cumilla or Chattogram to continue.`;
       return {
         answer: unsupportedAnswer,
-        language: "bn",
+        language,
         sources: ["BBS / Krishi Mama Supported District Registry"],
-        dataDate: new Date().toISOString().slice(0, 10),
+        dataDate: null,
         dataQuality: "district_unsupported",
         provenance: ["Administrative boundary filter"],
         limitations: ["Only Cumilla (BD2019) and Chattogram (BD2015) are actively validated."],

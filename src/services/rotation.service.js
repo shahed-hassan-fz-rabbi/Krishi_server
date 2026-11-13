@@ -1,6 +1,8 @@
 import { loadOfficialCropCalendars } from "./croplifecycle.service.js";
 import { snapshotService } from "./snapshot.service.js";
 import { checkCropClimate, describeAreaClimate } from "./rotation-climate.service.js";
+import { isRecommendedSmapObservation } from "./nasa/smap.quality.js";
+import { isGoodModisObservation } from "./nasa/modis.quality.js";
 
 const CROPS = ["monsoon_aman", "boro_rice", "aus_rice", "mustard"];
 const PROFILES = {
@@ -93,15 +95,15 @@ export function compareRotations(rawInput) {
     return Number(a.warnings.includes("calendar_overlap")) - Number(b.warnings.includes("calendar_overlap")) || a.waterRequirementMm - b.waterRequirementMm;
   });
   alternatives = alternatives.slice(0, 2);
-  const pick = (snapshot, field, qualityField, source, resolution) => {
+  const pick = (snapshot, field, source, resolution, isValid) => {
     const observations = [...(snapshot?.observations || [])].sort((a, b) => String(b.dateLabel).localeCompare(String(a.dateLabel)));
-    const latest = observations[0];
+    const latest = observations.find((row) => isValid(row, input.districtCode)) || null;
     const rawValue = latest?.[field];
-    const usable = latest?.[qualityField] === true && Number.isFinite(rawValue) && (field === "soilMoisture" ? rawValue >= 0 && rawValue <= 1 : rawValue >= -1 && rawValue <= 1);
+    const usable = Boolean(latest && Number.isFinite(rawValue));
     return { source, resolution, provenance: latest ? "SNAPSHOT" : "UNAVAILABLE", date: latest?.dateLabel || null,
       value: usable ? rawValue : null,
-      quality: latest?.qualityClassification || "unknown", usable,
-      coverage: observations.length, generatedAt: snapshot?.snapshotMetadata?.generatedAt || null };
+      quality: latest?.qualityClassification || "unavailable", usable,
+      coverage: observations.filter((row) => isValid(row, input.districtCode)).length, generatedAt: snapshot?.snapshotMetadata?.generatedAt || null };
   };
   return { version: "rotation-screening-v2", input, strategies: [baseline, ...alternatives],
     method: "calendar_and_historical_climate_screening", priority: input.priority, areaClimate: describeAreaClimate(climate),
@@ -109,8 +111,8 @@ export function compareRotations(rawInput) {
       power: { source: "NASA POWER", resolution: "~0.5° regional grid", provenance: climate ? "SNAPSHOT" : "UNAVAILABLE",
         period: climate?.snapshotMetadata?.sourceObservationDateRange || null,
         coveragePercent: climate?.meta?.coverage_percent ?? null },
-      smap: pick(snapshotService.getSmapSnapshot(input.districtCode), "soilMoisture", "isRecommendedQuality", "NASA SMAP", "9 km; surface 0–5 cm"),
-      modis: pick(snapshotService.getModisSnapshot(input.districtCode), "ndvi", "isReliableQuality", "NASA MODIS", "250 m; 16-day composite"),
+      smap: pick(snapshotService.getSmapSnapshot(input.districtCode), "soilMoisture", "NASA SMAP", "9 km; surface 0–5 cm", isRecommendedSmapObservation),
+      modis: pick(snapshotService.getModisSnapshot(input.districtCode), "ndvi", "NASA MODIS", "250 m; 16-day composite", isGoodModisObservation),
     },
     limitations: ["calendar_envelopes", "water_not_irrigation", "uncovered_not_bare", "regional_not_field", "historical_not_forecast", "no_yield_profit", "monthly_not_daily"],
   };

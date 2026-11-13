@@ -122,7 +122,7 @@ export async function chatWithAssistant(req, res, next) {
         }));
       }
 
-      const effectiveDistrict = verifiedFarm?.location?.districtCode || district || "cumilla";
+      const effectiveDistrict = verifiedFarm?.location?.districtCode || district || null;
       const effectiveCrop = crop || verifiedFarm?.crop?.cropCode || null;
 
       // Execute AI chat resolution
