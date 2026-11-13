@@ -7,9 +7,11 @@
  *   node src/jobs/ingest-power.js --no-resume
  */
 import "../config/env.config.js";
+import mongoose from "mongoose";
 import { connectDatabase, disconnectDatabase } from "../config/database.js";
 import { DISTRICTS, PARAMETER_NAMES, TARGET_RANGE } from "../config/climate.config.js";
 import { generateCoverageReport, runIngestionWorkflow } from "../services/nasa/ingestion.service.js";
+import { INGESTION_TARGET_DATABASE, assertIngestionTarget } from "../config/ingestionTarget.config.js";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -48,12 +50,15 @@ async function main() {
   console.log(`Resume Mode : ${options.resume ? "ENABLED (skips already stored chunks)" : "DISABLED (re-ingests all)"}`);
   console.log("==================================================\n");
 
-  const conn = await connectDatabase();
+  const conn = await connectDatabase({ databaseName: INGESTION_TARGET_DATABASE });
   if (!conn.connected) {
     console.error("Database connection failed:", conn.reason);
     process.exitCode = 1;
     return;
   }
+  // Fail closed unless the live connection is the approved target database.
+  assertIngestionTarget(mongoose.connection);
+  console.log(`[guard] Ingestion target verified: ${mongoose.connection.name}`);
 
   const startTime = Date.now();
   try {

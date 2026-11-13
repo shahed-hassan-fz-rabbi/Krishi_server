@@ -14,12 +14,15 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { ModisObservation } from "../models/modisobservation.model.js";
+import { INGESTION_TARGET_DATABASE, assertIngestionTarget } from "../config/ingestionTarget.config.js";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const parsedDataPath = path.resolve(__dirname, "../../data/modis/parsed_modis_observations.json");
+// Task-stamped parsed source — the exact provenance bound to the approved Stage-6
+// manifest (AppEEARS task e0405649-2665-439d-87eb-a08608108fcd).
+const parsedDataPath = path.resolve(__dirname, "../../data/modis/parsed_modis_observations_e0405649-2665-439d-87eb-a08608108fcd.json");
 
 const isConfirmed = process.argv.includes("--confirm");
 
@@ -56,8 +59,10 @@ async function runIngestion() {
     process.exit(1);
   }
 
-  await mongoose.connect(uri);
-  console.log("[db] Connected to MongoDB Atlas.");
+  await mongoose.connect(uri, { dbName: INGESTION_TARGET_DATABASE });
+  // Fail closed unless the live connection is the approved target database.
+  assertIngestionTarget(mongoose.connection);
+  console.log(`[db] Connected to MongoDB database (${mongoose.connection.name}).`);
 
   // Check initial state
   const initialSmapCount = await mongoose.connection.collection("smapobservations").countDocuments().catch(() => 0);

@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import { SMAP } from "../config/smap.config.js";
 import { DISTRICTS } from "../config/climate.config.js";
 import { SmapObservation } from "../models/smapobservation.model.js";
+import { INGESTION_TARGET_DATABASE, assertIngestionTarget } from "../config/ingestionTarget.config.js";
 
 const execFileAsync = promisify(execFile);
 const targetDistricts = {
@@ -20,8 +21,9 @@ const targetDistricts = {
 function getArgs() {
   const file = process.argv.find(x => x.startsWith("--file="))?.slice(7);
   const district = process.argv.find(x => x.startsWith("--district="))?.slice(11)?.toLowerCase();
+  const freshDatabase = process.argv.includes("--fresh-database");
   if (!file || district !== "cumilla") throw new Error("Pass --file=<staged HDF5 subset> --district=cumilla");
-  return { file: path.resolve(file), district };
+  return { file: path.resolve(file), district, freshDatabase };
 }
 
 function geodesicKm(lat1, lon1, lat2, lon2) {
@@ -40,7 +42,7 @@ function fingerprint(docs) {
 }
 
 async function main() {
-  const { file, district: districtCode } = getArgs();
+  const { file, district: districtCode, freshDatabase } = getArgs();
   const bytes = await fs.readFile(file);
   const fileSha256 = crypto.createHash("sha256").update(bytes).digest("hex");
   const { stdout } = await execFileAsync(process.env.PYTHON || "python", ["science/smap_parser.py", file, districtCode], { maxBuffer: 2 * 1024 * 1024 });
@@ -94,11 +96,38 @@ async function main() {
   }
   if (!docs.length) throw new Error("No Cumilla orbit passed coordinate, value, and quality gates; zero database writes performed");
   if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is not configured");
-  await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 12000, connectTimeoutMS: 8000 });
+  await mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 12000, connectTimeoutMS: 8000,
+    dbName: INGESTION_TARGET_DATABASE,
+  });
+  // Fail closed unless the live connection is the approved target database.
+  assertIngestionTarget(mongoose.connection);
   try {
     await SmapObservation.init();
     const before = await SmapObservation.find({}).select("districtCode dateLabel orbit soilMoisture retrievalQualityFlag latitude longitude granuleId").lean();
-    if (before.length !== 4) throw new Error(`Expected preserved SMAP baseline of 4; found ${before.length}; zero writes performed`);
+    // Baseline safeguard (never bypassed, never weakened):
+    //  - default mode: the historical 4-record SMAP baseline must be present and unchanged;
+    //  - fresh-database mode (explicit --fresh-database flag, approved target only):
+    //    the collection may only contain records from the Stage-6 manifest-approved
+    //    key set, and can never exceed it or contain any foreign record.
+    const APPROVED_SMAP_KEYS = new Set([
+      "cumilla|2024-01-02|AM",
+      "cumilla|2024-01-03|AM",
+      "cumilla|2024-01-05|PM",
+    ]);
+    if (freshDatabase) {
+      if (before.length > APPROVED_SMAP_KEYS.size) {
+        throw new Error(`Fresh-database baseline guard violated: ${before.length} existing SMAP records exceed the approved manifest set of ${APPROVED_SMAP_KEYS.size}; zero writes performed`);
+      }
+      for (const doc of before) {
+        const key = `${doc.districtCode}|${doc.dateLabel}|${doc.orbit}`;
+        if (!APPROVED_SMAP_KEYS.has(key)) {
+          throw new Error(`Fresh-database baseline guard violated: unexpected existing SMAP record ${key} is not in the approved manifest set; zero writes performed`);
+        }
+      }
+    } else if (before.length !== 4) {
+      throw new Error(`Expected preserved SMAP baseline of 4; found ${before.length}; zero writes performed`);
+    }
     const beforeFingerprint = fingerprint(before);
     const result = await SmapObservation.bulkWrite(docs.map(doc => ({ updateOne: {
       filter: { districtCode: doc.districtCode, dateLabel: doc.dateLabel, orbit: doc.orbit },
